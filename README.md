@@ -4,9 +4,9 @@ A self-hosted event pipeline, live-view dashboard and local vision-LLM enrichmen
 
 ## Why I built it
 
-I started out with Frigate. It worked well enough during the day, but at night I kept finding things in the camera footage that never appeared in the event list. I was playing with different settings to make it work and tried different models in Frigate, but eventually reached the point where it seemed better to treat my Uniview NVR as the source of truth for events instead of relying on separate software for reporting objects. The recorder was already catching the activity and storing the video anyway.
+I initially used Frigate, but ran into a limitation in its software detection pipeline: some nighttime activity never appeared as events, even though the Uniview NVR was detecting it. Different detector settings and models did not close that gap. I built Home Security around the NVR's API so the recorder's detections feed the event history directly.
 
-I decided to build around its API so the NVR handles the detection and recording, while Home Security handles the search, dashboard, and notifications. I also wanted image analysis to run locally without uploading camera snapshots to a cloud model.
+The NVR handles detection and recording, while Home Security handles search, the dashboard and notifications. Image analysis runs locally on my always-on server, without uploading camera snapshots to a cloud model.
 
 I added a PostgreSQL event index, a React dashboard, local Ollama descriptions and live H.264 viewing through go2rtc. Home Assistant delivers an initial source-based phone alert, then quietly updates the same notification when useful accepted AI text is ready.
 
@@ -158,4 +158,4 @@ The suites cover synthetic NVR payloads, canonical identity, geometric attributi
 
 I run local vision on an AMD Radeon 780M through Ollama's Vulkan backend. The current capture adapter expects Uniview Alarm/Structure payloads and the matching original-image endpoints. Live viewing uses H.264 substreams; mobile alerts use the supplied Node-RED/Home Assistant contract. Adapting a different NVR means implementing its source identities, media references and payload mapping.
 
-The local vision model is slow and can struggle with movement direction and detail at night. AI has one inference slot, so bursts can leave events without descriptions. Notification rules have their own cooldowns to limit repeated alerts; the event history still includes every canonical NVR detection.
+The compact 4B vision model can miss finer detail at night and sometimes gets movement direction wrong. It runs on the GPU in my always-on server, which is slower than my main workstation but stays available when the workstation is off. AI has one inference slot, so bursts can leave events without descriptions. Notification rules have their own cooldowns to limit repeated alerts; the event history still includes every canonical NVR detection.
