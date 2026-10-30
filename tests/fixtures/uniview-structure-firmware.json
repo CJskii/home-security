@@ -1,0 +1,70 @@
+{
+  "Reference": ":80/NVR_FIXTURE/Subscription/Subscribers/0",
+  "AlarmType": "EnterArea",
+  "EventType": "",
+  "TimeStamp": 1700000000,
+  "SrcID": 1,
+  "SrcName": "IP Camera 01",
+  "DeviceID": "",
+  "NotificationType": 0,
+  "RelatedID": "firmware-event-1",
+  "StructureInfo": {
+    "ObjInfo": {
+      "FaceNum": 0,
+      "NonMotorVehicleNum": 0,
+      "VehicleNum": 0,
+      "PersonNum": 1,
+      "PersonInfoList": [
+        {
+          "PersonID": 31001,
+          "PersonDoforFaceID": 0,
+          "AttributeInfo": {
+            "Gender": 98,
+            "AgeRange": 98,
+            "MaskFlag": 255,
+            "SleevesLength": 0,
+            "CoatColor": 99,
+            "TrousersLength": 0,
+            "TrousersColor": 99,
+            "BagFlag": 98,
+            "HairLength": 0,
+            "MovingDirection": 255,
+            "ShoesTubeLength": 0
+          },
+          "Position": "1200,800;2600,3400",
+          "SmallPicAttachIndex": 2,
+          "LargePicAttachIndex": 1,
+          "RuleInfo": {
+            "RuleType": 3,
+            "PointNum": 0
+          }
+        }
+      ]
+    },
+    "ImageNum": 2,
+    "ImageInfoList": [
+      {
+        "Index": 1,
+        "Type": 1,
+        "ChannelID": 1,
+        "Format": 0,
+        "Width": 3840,
+        "Height": 2160,
+        "CaptureTime": 1700000000,
+        "Size": 762712,
+        "Data": "[omitted]"
+      },
+      {
+        "Index": 2,
+        "Type": 2,
+        "ChannelID": 1,
+        "Format": 0,
+        "Width": 205,
+        "Height": 342,
+        "CaptureTime": 1700000000,
+        "Size": 52564,
+        "Data": "[omitted]"
+      }
+    ]
+  }
+}

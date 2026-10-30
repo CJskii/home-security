@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "lib": ["ES2023", "DOM"],
+    "module": "NodeNext", "moduleResolution": "NodeNext", "strict": true,
+    "noUncheckedIndexedAccess": true, "verbatimModuleSyntax": true,
+    "skipLibCheck": true, "outDir": "edge-dist", "rootDir": "edge"
+  },
+  "include": ["edge/**/*.ts"]
+}

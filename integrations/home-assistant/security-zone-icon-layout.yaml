@@ -1,0 +1,17 @@
+# Presentation-only body/styles. Existing entities, variables, refresh and actions stay intact.
+custom_fields:
+  body: >-
+    [[[ const s=states['sensor.home_security_history'];
+    const z=s?.attributes?.zoneActivity?.find(z=>z.channel===variables.channel&&z.slot===variables.slot);
+    const fresh=Number.isFinite(Date.parse(s?.state))&&Date.now()-Date.parse(s.state)<90000;
+    const at=z?.lastActivityAt&&new Date(z.lastActivityAt);
+    const time=at?new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(at):null;
+    const label=!fresh?'Activity unavailable':!z?'Configuration unavailable':!z.enabled?'Rule disabled':z.stale?'Last verified · sync stale':time?'Last verified activity':'No verified activity';
+    return html`<div class="zone"><ha-icon class="zone-icon" icon=${variables.zone_icon??'mdi:shield-home-outline'}></ha-icon><div class="zone-copy"><div class="zone-name" title=${variables.zone_name}>${variables.zone_name}</div><div class="zone-label">${label}</div><div class="zone-time">${fresh&&z?.enabled&&time?time:'—'}</div></div></div>`; ]]]
+extra_styles: |
+  .zone { box-sizing:border-box; height:96px; padding:12px; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; gap:10px; text-align:left; }
+  .zone .zone-icon { display:inline-flex!important; align-items:center; justify-content:center; width:22px!important; height:22px!important; margin:0!important; --mdc-icon-size:22px; color:var(--teal-color,#009688); }
+  .zone-copy { min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .zone-name { font-size:14px; font-weight:500; line-height:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .zone-label { font-size:12px; line-height:16px; color:var(--secondary-text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .zone-time { font-size:14px; font-weight:500; line-height:20px; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

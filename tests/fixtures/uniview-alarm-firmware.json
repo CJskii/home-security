@@ -1,0 +1,20 @@
+{
+  "Reference": ":80/NVR_FIXTURE/Subscription/Subscribers/0",
+  "AlarmInfo": {
+    "AlarmSrcType": 8,
+    "AlarmSrcID": 1,
+    "TimeStamp": 1700000000,
+    "AlarmType": "EnterArea",
+    "DeviceID": "",
+    "RelatedID": "firmware-event-1"
+  },
+  "RelatedObjects": {
+    "ObjectNum": 1,
+    "ObjectList": [
+      {
+        "ObjectType": 2,
+        "ObjectID": 21001
+      }
+    ]
+  }
+}

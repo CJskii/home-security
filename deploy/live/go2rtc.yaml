@@ -1,0 +1,14 @@
+api:
+  listen: ":1984"
+  username: "${SECURITY_GATEWAY_USER}"
+  password: "${SECURITY_GATEWAY_PASSWORD}"
+  local_auth: true
+rtsp:
+  listen: ""
+webrtc:
+  listen: ""
+streams:
+  camera_1_sub: "${NVR_C1_SUB_RTSP}#media=video#backchannel=0"
+  camera_2_sub: "${NVR_C2_SUB_RTSP}#media=video#backchannel=0"
+log:
+  level: disabled

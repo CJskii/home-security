@@ -1,0 +1,38 @@
+{
+  "searchStart": { "SearchID": 7 },
+  "searchProgress": { "Percent": 100 },
+  "searchPage": {
+    "Num": 1,
+    "Total": 1,
+    "SmartObjectInfoList": [{
+      "RecordID": "fixture-record", "Type": 2, "Time": 1700000000, "ChannelID": 1,
+      "FullPicture": { "Name": "fixture_full", "Size": 40, "URL": "http://invalid/untrusted-reference" },
+      "ObjectList": [{
+        "ObjectID": 10,
+        "ObjectPicture": { "Name": "fixture_crop", "Size": 40 },
+        "ObjectInfo": {
+          "ObjectType": 2,
+          "PersonInfo": {
+            "PersonID": 0, "Position": "2000,3000;4000,8000",
+            "RuleInfo": { "RuleType": 1, "PointNum": 4, "PointList": [
+              { "X": 100, "Y": 100 }, { "X": 100, "Y": 9900 }, { "X": 9900, "Y": 9900 }, { "X": 9900, "Y": 100 }
+            ] },
+            "AttributeInfo": { "AgeRange": 98 }
+          }
+        }
+      }]
+    }]
+  },
+  "accessZone": {
+    "Rule": { "Enabled": 1 },
+    "Areas": { "Num": 1, "PolygonInfoList": [{
+      "ID": 0, "Enabled": 1, "Sensitivity": 50, "PointNum": 4, "PointList": [
+        { "X": 100, "Y": 100 }, { "X": 100, "Y": 9900 }, { "X": 9900, "Y": 9900 }, { "X": 9900, "Y": 100 }
+      ]
+    }] }
+  },
+  "recordings": {
+    "Nums": 1, "RecordInfos": [{ "FileName": "", "RecordType": 67108864, "RecordTypes2": 0, "Begin": 1700000000, "End": 1700000030 }]
+  },
+  "recordingReference": { "URL": "rtsp://10.0.0.1:554/c1/b1700000000/e1700000030/replay/s0/" }
+}

@@ -1,0 +1,46 @@
+name: home-security
+x-runtime: &runtime
+  build:
+    context: .
+    target: runtime
+  env_file: [.env.local]
+  networks: [coolify, infrastructure-net]
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - "/tmp:rw,noexec,nosuid,size=16m"
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 128
+  mem_limit: 512m
+  stop_grace_period: 45s
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: '3'}
+services:
+  api:
+    <<: *runtime
+    container_name: home-security-api
+    environment: {PORT: '3000', SERVICE_NAME: home-security-api, CAMERA_SYNC_OWNER_URL: 'http://receiver:18080/'}
+    ports: ['127.0.0.1:3000:3000']
+  receiver:
+    <<: *runtime
+    profiles: [uniview]
+    container_name: home-security-receiver
+    command: [node, dist/receiver.js]
+    environment: {PORT: '18080', SERVICE_NAME: home-security-receiver}
+    ports: ['${UNIVIEW_BIND_IP:-127.0.0.1}:18080:18080']
+    mem_limit: 1g
+    memswap_limit: 1g
+    ulimits:
+      core: {soft: 0, hard: 0}
+  migrate:
+    profiles: [tools]
+    build: {context: ., target: migrations}
+    env_file: [.env.local]
+    networks: [coolify]
+    restart: 'no'
+networks:
+  coolify: {external: true}
+  infrastructure-net: {external: true}

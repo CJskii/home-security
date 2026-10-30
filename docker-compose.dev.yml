@@ -1,0 +1,96 @@
+# Isolated local example. This does not use the Coolify database or network.
+name: residential-security-dev
+services:
+  db:
+    image: postgres:18-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    volumes:
+      # PostgreSQL 18 uses a version-specific PGDATA beneath this mount.
+      - security-db-dev:/var/lib/postgresql
+    networks: [development]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      target: runtime
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SERVICE_NAME: ${SERVICE_NAME:-residential-security-backend}
+      METRICS_ENABLED: ${METRICS_ENABLED:-false}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      DB_POOL_MAX: ${DB_POOL_MAX:-5}
+      DB_CHECK_TIMEOUT_MS: ${DB_CHECK_TIMEOUT_MS:-2000}
+      SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-10000}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    ports: ["127.0.0.1:${DEV_API_PORT:-3000}:3000"]
+    networks: [development]
+    depends_on:
+      db: { condition: service_healthy }
+    stop_grace_period: ${STOP_GRACE_PERIOD:-45s}
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 128
+    mem_limit: 512m
+    restart: unless-stopped
+
+  receiver:
+    profiles: [uniview]
+    build: {context: ., target: runtime}
+    command: [node, dist/receiver.js]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      PORT: '18080'
+      UNIVIEW_ENABLED: ${UNIVIEW_ENABLED:-false}
+      UNIVIEW_INSTALLATION_ID: ${UNIVIEW_INSTALLATION_ID:-}
+      UNIVIEW_NVR_IP: ${UNIVIEW_NVR_IP:-}
+      UNIVIEW_CAMERA_MAP: ${UNIVIEW_CAMERA_MAP:-{}}
+      SHUTDOWN_TIMEOUT_MS: '30000'
+      UNIVIEW_SAMPLING_ENABLED: ${UNIVIEW_SAMPLING_ENABLED:-false}
+      UNIVIEW_USERNAME: ${UNIVIEW_USERNAME:-}
+      UNIVIEW_PASSWORD: ${UNIVIEW_PASSWORD:-}
+      UNIVIEW_PROCESSING_TIMEOUT_MS: ${UNIVIEW_PROCESSING_TIMEOUT_MS:-30000}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BEARER_TOKEN: ${AI_BEARER_TOKEN:-}
+      AI_ENABLEMENT_CUTOFF: ${AI_ENABLEMENT_CUTOFF:-}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-60000}
+    networks: [development]
+    ports: ['127.0.0.1:18080:18080']
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 45s
+
+  migrate:
+    profiles: [tools]
+    build:
+      context: .
+      target: migrations
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    networks: [development]
+    depends_on:
+      db: { condition: service_healthy }
+
+networks:
+  development:
+    internal: true
+
+volumes:
+  security-db-dev:

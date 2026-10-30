@@ -1,0 +1,17 @@
+# Existing standalone production live gateway, managed independently of Coolify.
+# The historical project name is retained to avoid creating a duplicate gateway.
+name: home-security-live-dev
+services:
+  gateway:
+    image: ghcr.io/alexxit/go2rtc:1.9.14@sha256:675c318b23c06fd862a61d262240c9a63436b4050d177ffc68a32710d9e05bae
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    env_file: ../../.env.live.local
+    ports:
+      - "127.0.0.1:1984:1984"
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+    logging:
+      driver: none

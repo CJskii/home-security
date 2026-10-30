@@ -1,0 +1,411 @@
+--- master-home.original.yaml
++++ master-home.proposed.yaml
+@@ -25,0 +26,4 @@
++    variables:
++      camera_labels:
++        Camera 1: Driveway
++        Camera 2: Side Walkway
+@@ -37,2 +41,2 @@
+-      - border: none
+-      - border-radius: 16px
++      - border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color))
++      - border-radius: var(--ha-card-border-radius, 12px)
+@@ -42,0 +47 @@
++      - font-size: 14px
+@@ -65 +70 @@
+-      .heading strong { font-size:16px; font-weight:600; }
++      .heading strong { font-size:18px; font-weight:400; }
+@@ -91,3 +95,0 @@
+-    styles:
+-      card:
+-      - background: color-mix(in srgb, var(--ha-card-background, var(--card-background-color)) 94%, var(--teal-color,
+@@ -113 +115 @@
+-    extra_styles: '.zone { padding:18px 20px; }
++    extra_styles: '.zone { padding:14px 16px; }
+@@ -119 +121 @@
+-      .zone-name { font-size:16px; font-weight:600; flex:1; }
++      .zone-name { font-size:15px; font-weight:500; flex:1; }
+@@ -123,7 +125,6 @@
+-      .zone-label { margin-top:18px; font-size:13px; color:var(--secondary-text-color); }
+-
+-      .zone-time { margin-top:4px; font-size:19px; font-weight:500; font-variant-numeric:tabular-nums; }
+-
+-      @media(max-width:600px) { .zone { padding:16px; } .zone-name { font-size:14px; white-space:nowrap; } .zone .arrow {
+-      display:none; } .zone { padding:14px; } .zone-top { gap:8px; } .zone-label { margin-top:14px; } .zone-time { font-size:17px;
+-      } }
++      .zone-label { margin-top:10px; font-size:12px; color:var(--secondary-text-color); }
++
++      .zone-time { margin-top:2px; font-size:20px; font-weight:500; font-variant-numeric:tabular-nums; }
++
++      @media(max-width:600px) { .zone { padding:12px; } .zone-name { font-size:14px; white-space:nowrap; } .zone .arrow { display:none;
++      } .zone { padding:12px; } .zone-top { gap:8px; } .zone-label { margin-top:8px; } .zone-time { font-size:18px; } }
+@@ -153,2 +154,2 @@
+-        class="item-meta">${r.cameraLabel} · ${r.time}</div><div class="description">${r.subtitle}</div></div><ha-icon class="arrow"
+-        icon="mdi:arrow-top-right"></ha-icon></div>`; ]]]
++        class="item-meta">${variables.camera_labels[r.cameraLabel]??r.cameraLabel} · ${r.time}</div><div class="description">${r.subtitle}</div></div><ha-icon
++        class="arrow" icon="mdi:arrow-top-right"></ha-icon></div>`; ]]]
+@@ -161,2 +162,2 @@
+-    extra_styles: '.activity { display:grid; grid-template-columns:64px minmax(0,1fr) 16px; align-items:center; gap:14px;
+-      padding:16px; min-height:112px; }
++    extra_styles: '.activity { display:grid; grid-template-columns:64px minmax(0,1fr) 16px; align-items:center; gap:14px; padding:16px;
++      min-height:112px; }
+@@ -175 +176 @@
+-      .item-title { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:16px; font-weight:600; line-height:22px;
++      .item-title { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:16px; font-weight:500; line-height:22px;
+@@ -180,3 +181,3 @@
+-      .item-meta { color:var(--secondary-text-color); font-size:12px; line-height:19px; margin-top:3px; }
+-
+-      .description { font-size:14px; line-height:20px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
++      .item-meta { color:var(--secondary-text-color); font-size:13px; line-height:19px; margin-top:3px; }
++
++      .description { font-size:15px; line-height:20px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+@@ -188 +189 @@
+-      } .thumb { width:56px; height:72px; } .item-title { font-size:15px; } .item-meta { font-size:12px; } }
++      } .thumb { width:56px; height:72px; } .item-title { font-size:16px; } .item-meta { font-size:13px; } }
+@@ -195,0 +197,4 @@
++    styles:
++      card:
++      - border: none
++      - border-radius: 0px
+@@ -211 +216 @@
+-      .camera-heading strong { font-size:15px; font-weight:600; }
++      .camera-heading strong { font-size:16px; font-weight:500; }
+@@ -230,2 +235 @@
+-      body: '[[[ const s=states[''sensor.home_security_history''];const fresh=Date.now()-Date.parse(s?.state)<90000;const
+-        rows=fresh?s?.attributes?.notificationRows??[]:[];
++      body: '[[[ const s=states[''sensor.home_security_history''];const fresh=Date.now()-Date.parse(s?.state)<90000;const rows=fresh?s?.attributes?.notificationRows??[]:[];
+@@ -237,4 +241,4 @@
+-        icon=${r.icon}></ha-icon></span><span class="notice-copy"><strong>${r.title}</strong><span>${r.time}</span></span><ha-icon
+-        class="arrow" icon="mdi:chevron-right"></ha-icon></a>`)}</div>${!rows.length?html`<div class="empty">${fresh?''No
+-        recent notification outcomes'':''History unavailable''}</div>`:''''}<div class="footnote">Webhook acceptance does
+-        not confirm phone display.</div></div>`; ]]]
++        icon=${r.icon}></ha-icon></span><span class="notice-copy"><strong>${r.title.replace(/^Camera [12]/,name=>variables.camera_labels[name]??name)}</strong><span>${r.time}</span></span><ha-icon
++        class="arrow" icon="mdi:chevron-right"></ha-icon></a>`)}</div>${!rows.length?html`<div class="empty">${fresh?''No recent
++        notification outcomes'':''History unavailable''}</div>`:''''}<div class="footnote">Webhook acceptance does not confirm
++        phone display.</div></div>`; ]]]
+@@ -243,2 +247,2 @@
+-    extra_styles: '.notice { display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid color-mix(in
+-      srgb,var(--primary-text-color) 7%,transparent); }
++    extra_styles: '.notice { display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid color-mix(in srgb,var(--primary-text-color)
++      7%,transparent); }
+@@ -258 +262 @@
+-      .notice-copy>span { font-size:12px; color:var(--secondary-text-color); }
++      .notice-copy>span { font-size:13px; color:var(--secondary-text-color); }
+@@ -271,2 +275,2 @@
+-      body: '[[[ const s=states[''sensor.home_security_history''];const fresh=Date.now()-Date.parse(s?.state)<90000;const
+-        zones=s?.attributes?.zoneActivity??[];const rows=fresh?s?.attributes?.otherDetections??[]:[];
++      body: '[[[ const s=states[''sensor.home_security_history''];const fresh=Date.now()-Date.parse(s?.state)<90000;const zones=s?.attributes?.zoneActivity??[];const
++        rows=fresh?s?.attributes?.otherDetections??[]:[];
+@@ -277 +281 @@
+-        const specs=[[''Road'',1,3],[''Neighbour A'',1,1],[''Neighbour B · Camera 1'',1,2],[''Neighbour B · Camera 2'',2,1]];
++        const specs=[[''Road'',1,3],[''Neighbour A'',1,1],[''Neighbour B · Driveway'',1,2],[''Neighbour B · Side Walkway'',2,1]];
+@@ -286,5 +290,5 @@
+-        target="_blank" rel="noopener"><strong>${name}</strong><span>${!fresh?''Activity unavailable'':!z?''Configuration
+-        unavailable'':!z.enabled?''Rule disabled'':z.lastActivityAt?fmt(z.lastActivityAt)+(z.stale?'' · sync stale'':''''):''No
+-        verified activity''}</span></a>`})}</div><div class="heading"><strong>Recent activity</strong><a @click=${e=>e.stopPropagation()}
+-        href="https://security.example.com/explore?location=other" target="_blank" rel="noopener">View all ↗</a></div>${rows.slice(0,2).map(r=>html`<a
+-        @click=${e=>e.stopPropagation()} class="other-row" href=${r.url} target="_blank" rel="noopener"><ha-icon icon=${r.icon}></ha-icon><span><strong>${r.title}</strong><span>${r.cameraLabel}
++        target="_blank" rel="noopener"><strong>${name}</strong><span>${!fresh?''Activity unavailable'':!z?''Configuration unavailable'':!z.enabled?''Rule
++        disabled'':z.lastActivityAt?fmt(z.lastActivityAt)+(z.stale?'' · sync stale'':''''):''No verified activity''}</span></a>`})}</div><div
++        class="heading"><strong>Recent activity</strong><a @click=${e=>e.stopPropagation()} href="https://security.example.com/explore?location=other"
++        target="_blank" rel="noopener">View all ↗</a></div>${rows.slice(0,2).map(r=>html`<a @click=${e=>e.stopPropagation()}
++        class="other-row" href=${r.url} target="_blank" rel="noopener"><ha-icon icon=${r.icon}></ha-icon><span><strong>${r.title}</strong><span>${variables.camera_labels[r.cameraLabel]??r.cameraLabel}
+@@ -3374,5 +3378,3 @@
+-        extra_styles: .section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px
+-          2px}.section-heading h2{font-size:20px;font-weight:600;line-height:26px;margin:0}.section-heading p{font-size:14px;color:var(--secondary-text-color);margin:5px
+-          0 0;line-height:20px}.section-heading a{font-size:13px;color:var(--secondary-text-color);white-space:nowrap}@media(max-width:600px){.section-heading
+-          h2{font-size:19px}.section-heading p{font-size:13px}}.section-heading{padding-top:4px;padding-bottom:6px}.section-heading
+-          h2{font-size:25px;line-height:32px;letter-spacing:-.4px}
++          - border: none
++          - border-radius: 0px
++        extra_styles: ".section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px 2px}.section-heading h2{font-size:20px;font-weight:400;line-height:26px;margin:0}.section-heading p{font-size:14px;color:var(--secondary-text-color);margin:5px 0 0;line-height:20px}.section-heading a{font-size:13px;color:var(--secondary-text-color);white-space:nowrap}@media(max-width:600px){.section-heading h2{font-size:19px}.section-heading p{font-size:13px}}.section-heading{padding-top:4px;padding-bottom:6px}.section-heading h2{font-size:24px;line-height:32px;letter-spacing:normal}"
+@@ -3395 +3397 @@
+-              camera_name: Camera 1
++              camera_name: "Driveway"
+@@ -3446 +3448 @@
+-            style: ha-card{border:none;border-radius:16px;overflow:hidden;box-shadow:none;background:var(--ha-card-background,var(--card-background-color));--vertical-stack-card-gap:0px}
++            style: "ha-card { border:var(--ha-card-border-width,1px) solid var(--ha-card-border-color,var(--divider-color)); border-radius:var(--ha-card-border-radius,12px); box-shadow:none; padding:0; overflow:hidden; --vertical-stack-card-gap:0px; background:var(--ha-card-background,var(--card-background-color)); }"
+@@ -3453 +3455 @@
+-              camera_name: Camera 2
++              camera_name: "Side Walkway"
+@@ -3504 +3506 @@
+-            style: ha-card{border:none;border-radius:16px;overflow:hidden;box-shadow:none;background:var(--ha-card-background,var(--card-background-color));--vertical-stack-card-gap:0px}
++            style: "ha-card { border:var(--ha-card-border-width,1px) solid var(--ha-card-border-color,var(--divider-color)); border-radius:var(--ha-card-border-radius,12px); box-shadow:none; padding:0; overflow:hidden; --vertical-stack-card-gap:0px; background:var(--ha-card-background,var(--card-background-color)); }"
+@@ -3516,4 +3518,3 @@
+-        extra_styles: .section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px
+-          2px}.section-heading h2{font-size:20px;font-weight:600;line-height:26px;margin:0}.section-heading p{font-size:14px;color:var(--secondary-text-color);margin:5px
+-          0 0;line-height:20px}.section-heading a{font-size:13px;color:var(--secondary-text-color);white-space:nowrap}@media(max-width:600px){.section-heading
+-          h2{font-size:19px}.section-heading p{font-size:13px}}
++          - border: none
++          - border-radius: 0px
++        extra_styles: ".section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 2px 2px}.section-heading h2{font-size:20px;font-weight:400;line-height:26px;margin:0}.section-heading p{font-size:14px;color:var(--secondary-text-color);margin:5px 0 0;line-height:20px}.section-heading a{font-size:13px;color:var(--secondary-text-color);white-space:nowrap}@media(max-width:600px){.section-heading h2{font-size:19px}.section-heading p{font-size:13px}}"
+@@ -3587 +3588 @@
+-        - type: custom:vertical-stack-in-card
++        - type: vertical-stack
+@@ -3589,12 +3590 @@
+-          - type: heading
+-            heading: Indoor motion
+-            heading_style: title
+-            icon: mdi:motion-sensor
+-            card_mod:
+-              style: ha-card{border:none;background:none;padding:4px 4px 8px}:host{--ha-heading-card-title-font-size:16px;--ha-heading-card-title-font-weight:600}
+-          - type: grid
+-            columns: 2
+-            square: false
+-            grid_options:
+-              columns: full
+-              rows: auto
++          - type: custom:vertical-stack-in-card
+@@ -3602,6 +3592,3 @@
+-            - type: custom:mushroom-template-card
+-              entity: binary_sensor.motion_living_room_occupancy
+-              primary: Living Room
+-              secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else
+-                ''Unavailable'' }}'
+-              multiline_secondary: true
++            - type: heading
++              heading: Indoor motion
++              heading_style: title
+@@ -3609,7 +3595,0 @@
+-              icon_color: '{{ ''amber'' if states(entity) in [''on'', ''unknown'', ''unavailable''] else ''grey'' }}'
+-              tap_action:
+-                action: more-info
+-              hold_action:
+-                action: none
+-              double_tap_action:
+-                action: none
+@@ -3617,15 +3597,74 @@
+-                style: ha-card{border:none;box-shadow:none;background:transparent;--mush-spacing:10px;--mush-icon-size:32px;--mush-card-primary-font-size:14px;--mush-card-secondary-font-size:13px}
+-            - type: custom:mushroom-template-card
+-              entity: binary_sensor.motion_entrance_occupancy
+-              primary: Entrance
+-              secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else
+-                ''Unavailable'' }}'
+-              multiline_secondary: true
+-              icon: mdi:motion-sensor
+-              icon_color: '{{ ''amber'' if states(entity) in [''on'', ''unknown'', ''unavailable''] else ''grey'' }}'
+-              tap_action:
+-                action: more-info
+-              hold_action:
+-                action: none
+-              double_tap_action:
+-                action: none
++                style: ha-card { border:none; background:none; padding:2px 4px 6px; } :host { --ha-heading-card-title-font-size:18px;
++                  --ha-heading-card-title-font-weight:400; }
++            - type: grid
++              columns: 2
++              square: false
++              grid_options:
++                columns: full
++                rows: auto
++              cards:
++              - type: custom:mushroom-template-card
++                entity: binary_sensor.motion_living_room_occupancy
++                primary: Living Room
++                secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else ''Unavailable''
++                  }}'
++                multiline_secondary: true
++                icon: mdi:motion-sensor
++                icon_color: '{{ ''amber'' if is_state(entity, ''on'') else ''grey'' }}'
++                tap_action:
++                  action: more-info
++                hold_action:
++                  action: none
++                double_tap_action:
++                  action: none
++                card_mod: &hs_status_style_01
++                  style: "ha-card {\n  border:none; box-shadow:none; background:transparent; border-radius:8px;\n  min-height:68px;\
++                    \ --mush-spacing:8px; --mush-icon-size:36px;\n  --mush-card-primary-font-size:14px; --mush-card-primary-font-weight:500;\n\
++                    \  --mush-card-secondary-font-size:14px; --mush-card-secondary-line-height:20px;\n}\nha-card {\n  border-inline-start:2px\
++                    \ solid {{ 'var(--state-active-color,var(--amber-color,#ffc107))' if is_state(config.entity,'on') else 'transparent'\
++                    \ }};\n}"
++              - type: custom:mushroom-template-card
++                entity: binary_sensor.motion_entrance_occupancy
++                primary: Entrance
++                secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else ''Unavailable''
++                  }}'
++                multiline_secondary: true
++                icon: mdi:motion-sensor
++                icon_color: '{{ ''amber'' if is_state(entity, ''on'') else ''grey'' }}'
++                tap_action:
++                  action: more-info
++                hold_action:
++                  action: none
++                double_tap_action:
++                  action: none
++                card_mod: *hs_status_style_01
++              - type: custom:mushroom-template-card
++                entity: binary_sensor.motion_stairs_down_occupancy
++                primary: Lower stairs
++                secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else ''Unavailable''
++                  }}'
++                multiline_secondary: true
++                icon: mdi:motion-sensor
++                icon_color: '{{ ''amber'' if is_state(entity, ''on'') else ''grey'' }}'
++                tap_action:
++                  action: more-info
++                hold_action:
++                  action: none
++                double_tap_action:
++                  action: none
++                card_mod: *hs_status_style_01
++              - type: custom:mushroom-template-card
++                entity: binary_sensor.motion_stairs_up_occupancy
++                primary: Upper stairs
++                secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else ''Unavailable''
++                  }}'
++                multiline_secondary: true
++                icon: mdi:motion-sensor
++                icon_color: '{{ ''amber'' if is_state(entity, ''on'') else ''grey'' }}'
++                tap_action:
++                  action: more-info
++                hold_action:
++                  action: none
++                double_tap_action:
++                  action: none
++                card_mod: *hs_status_style_01
+@@ -3633,15 +3672,10 @@
+-                style: ha-card{border:none;box-shadow:none;background:transparent;--mush-spacing:10px;--mush-icon-size:32px;--mush-card-primary-font-size:14px;--mush-card-secondary-font-size:13px}
+-            - type: custom:mushroom-template-card
+-              entity: binary_sensor.motion_stairs_down_occupancy
+-              primary: Lower stairs
+-              secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else
+-                ''Unavailable'' }}'
+-              multiline_secondary: true
+-              icon: mdi:motion-sensor
+-              icon_color: '{{ ''amber'' if states(entity) in [''on'', ''unknown'', ''unavailable''] else ''grey'' }}'
+-              tap_action:
+-                action: more-info
+-              hold_action:
+-                action: none
+-              double_tap_action:
+-                action: none
++                style: ':host #root{gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}'
++            card_mod: &hs_status_style_03
++              style: ha-card { border:var(--ha-card-border-width,1px) solid var(--ha-card-border-color,var(--divider-color)); border-radius:var(--ha-card-border-radius,12px);
++                box-shadow:none; padding:12px; background:var(--ha-card-background,var(--card-background-color)); }
++          - type: custom:vertical-stack-in-card
++            cards:
++            - type: heading
++              heading: Presence
++              heading_style: title
++              icon: mdi:account-group
+@@ -3649,15 +3683,46 @@
+-                style: ha-card{border:none;box-shadow:none;background:transparent;--mush-spacing:10px;--mush-icon-size:32px;--mush-card-primary-font-size:14px;--mush-card-secondary-font-size:13px}
+-            - type: custom:mushroom-template-card
+-              entity: binary_sensor.motion_stairs_up_occupancy
+-              primary: Upper stairs
+-              secondary: '{{ ''Motion detected'' if is_state(entity, ''on'') else ''Clear'' if is_state(entity, ''off'') else
+-                ''Unavailable'' }}'
+-              multiline_secondary: true
+-              icon: mdi:motion-sensor
+-              icon_color: '{{ ''amber'' if states(entity) in [''on'', ''unknown'', ''unavailable''] else ''grey'' }}'
+-              tap_action:
+-                action: more-info
+-              hold_action:
+-                action: none
+-              double_tap_action:
+-                action: none
++                style: ha-card { border:none; background:none; padding:2px 4px 6px; } :host { --ha-heading-card-title-font-size:18px;
++                  --ha-heading-card-title-font-weight:400; }
++            - type: grid
++              columns: 2
++              square: false
++              grid_options:
++                columns: full
++                rows: auto
++              cards:
++              - type: custom:mushroom-template-card
++                entity: person.primary
++                primary: Primary phone
++                secondary: '{{ ''Home'' if is_state(entity, ''home'') else ''Unknown'' if states(entity) in [''unknown'', ''unavailable'']
++                  else ''Away'' }}'
++                multiline_secondary: true
++                icon: mdi:account
++                icon_color: '{{ ''green'' if is_state(entity, ''home'') else ''grey'' }}'
++                tap_action:
++                  action: more-info
++                hold_action:
++                  action: none
++                double_tap_action:
++                  action: none
++                card_mod: &hs_status_style_02
++                  style: "ha-card {\n  border:none; box-shadow:none; background:transparent; border-radius:8px;\n  min-height:68px;\
++                    \ --mush-spacing:8px; --mush-icon-size:36px;\n  --mush-card-primary-font-size:14px; --mush-card-primary-font-weight:500;\n\
++                    \  --mush-card-secondary-font-size:14px; --mush-card-secondary-line-height:20px;\n}\nha-card {\n  border-inline-start:2px\
++                    \ solid {{ 'color-mix(in srgb,var(--success-color,#4caf50) 55%,transparent)' if is_state(config.entity,'home')\
++                    \ else 'var(--divider-color)' }};\n}"
++                picture: '{{ state_attr(''person.primary'', ''entity_picture'') or '''' }}'
++              - type: custom:mushroom-template-card
++                entity: person.secondary
++                primary: Secondary phone
++                secondary: '{{ ''Home'' if is_state(entity, ''home'') else ''Unknown'' if states(entity) in [''unknown'', ''unavailable'']
++                  else ''Away'' }}'
++                multiline_secondary: true
++                icon: mdi:account
++                icon_color: '{{ ''green'' if is_state(entity, ''home'') else ''grey'' }}'
++                tap_action:
++                  action: more-info
++                hold_action:
++                  action: none
++                double_tap_action:
++                  action: none
++                card_mod: *hs_status_style_02
++                picture: '{{ state_attr(''person.secondary'', ''entity_picture'') or '''' }}'
+@@ -3665,54 +3730,2 @@
+-                style: ha-card{border:none;box-shadow:none;background:transparent;--mush-spacing:10px;--mush-icon-size:32px;--mush-card-primary-font-size:14px;--mush-card-secondary-font-size:13px}
+-            card_mod:
+-              style: ':host #root{gap:4px;grid-template-columns:repeat(2,minmax(0,1fr))}'
+-          - type: heading
+-            heading: Presence
+-            heading_style: title
+-            icon: mdi:account-group
+-            card_mod:
+-              style: ha-card{border:none;background:none;padding:4px 4px 8px}:host{--ha-heading-card-title-font-size:16px;--ha-heading-card-title-font-weight:600}
+-          - type: grid
+-            columns: 2
+-            square: false
+-            grid_options:
+-              columns: full
+-              rows: auto
+-            cards:
+-            - type: custom:mushroom-template-card
+-              entity: person.primary
+-              primary: Primary phone
+-              secondary: '{{ ''Home'' if is_state(entity, ''home'') else ''Unknown'' if states(entity) in [''unknown'', ''unavailable'']
+-                else ''Away'' }}'
+-              multiline_secondary: true
+-              icon: mdi:account
+-              icon_color: '{{ ''green'' if is_state(entity, ''home'') else ''grey'' }}'
+-              tap_action:
+-                action: more-info
+-              hold_action:
+-                action: none
+-              double_tap_action:
+-                action: none
+-              card_mod:
+-                style: ha-card{border:none;box-shadow:none;background:transparent;--mush-spacing:10px;--mush-icon-size:32px;--mush-card-primary-font-size:14px;--mush-card-secondary-font-size:13px}
+-              picture: '{{ state_attr(''person.primary'', ''entity_picture'') or '''' }}'
+-            - type: custom:mushroom-template-card
+-              entity: person.secondary
+-              primary: Secondary phone
+-              secondary: '{{ ''Home'' if is_state(entity, ''home'') else ''Unknown'' if states(entity) in [''unknown'', ''unavailable'']
+-                else ''Away'' }}'
+-              multiline_secondary: true
+-              icon: mdi:account
+-              icon_color: '{{ ''green'' if is_state(entity, ''home'') else ''grey'' }}'
+-              tap_action:
+-                action: more-info
+-              hold_action:
+-                action: none
+-              double_tap_action:
+-                action: none
+-              card_mod:
+-                style: ha-card{border:none;box-shadow:none;background:transparent;--mush-spacing:10px;--mush-icon-size:32px;--mush-card-primary-font-size:14px;--mush-card-secondary-font-size:13px}
+-              picture: '{{ state_attr(''person.secondary'', ''entity_picture'') or '''' }}'
+-            card_mod:
+-              style: ':host #root{gap:4px;grid-template-columns:repeat(2,minmax(0,1fr))}'
+-          card_mod:
+-            style: ha-card{border:none;border-radius:16px;box-shadow:none;padding:14px;background:var(--ha-card-background,var(--card-background-color))}
++                style: ':host #root{gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}'
++            card_mod: *hs_status_style_03

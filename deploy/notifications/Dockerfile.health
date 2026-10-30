@@ -1,0 +1,8 @@
+# Targeted overlay: preserve every dependency and notification-policy module from
+# the approved worker image. Build context contains only these compiled modules.
+ARG WORKER_BASE_IMAGE=home-security-notification-worker:health-baseline
+FROM ${WORKER_BASE_IMAGE}
+COPY --chown=node:node notification-worker.js /app/dist/notification-worker.js
+COPY --chown=node:node worker-health.js /app/dist/notifications/worker-health.js
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD ["node", "dist/notifications/worker-health.js"]

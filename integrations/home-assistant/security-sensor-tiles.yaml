@@ -1,0 +1,51 @@
+# Presentation only. Match existing Home/Rooms Mushroom tiles; no entity actions.
+common: |-
+  :host { min-width:0; display:block; }
+  ha-card {
+    box-sizing:border-box; max-width:100%; min-height:84px;
+    border:1px solid var(--divider-color); border-radius:16px;
+    background:var(--ha-card-background,var(--card-background-color)); box-shadow:none;
+    --mush-spacing:12px; --mush-icon-size:36px;
+    --mush-card-primary-font-size:15px; --mush-card-primary-font-weight:600;
+    --mush-card-primary-line-height:22px;
+    --mush-card-secondary-font-size:13px; --mush-card-secondary-line-height:20px;
+  }
+  .content { padding:12px !important; gap:10px; align-items:center; }
+  ha-tile-info { min-width:0; --ha-tile-info-gap:3px; }
+  [slot="primary"] { font-size:15px; font-weight:600; line-height:22px; }
+  [slot="secondary"] { font-size:13px; line-height:20px; }
+  @media(max-width:600px) { ha-card { min-height:80px; --mush-spacing:10px; } .content { padding:10px !important; gap:8px; } }
+motion: |-
+  {% set accent = 'var(--amber-color,#ffc107)' if is_state(config.entity,'on') else 'var(--divider-color)' %}
+  ha-card {
+    border-inline-start:3px solid {{ accent }};
+    border-color:color-mix(in srgb,{{ accent }} 35%,var(--divider-color));
+    border-inline-start-color:{{ accent }};
+  }
+presence: |-
+  {% set accent = 'var(--green-color,#4caf50)' if is_state(config.entity,'home') else 'var(--amber-color,#ffc107)' if states(config.entity) in ['unknown','unavailable'] else 'var(--divider-color)' %}
+  ha-card {
+    border-inline-start:3px solid {{ accent }};
+    border-color:color-mix(in srgb,{{ accent }} 35%,var(--divider-color));
+    border-inline-start-color:{{ accent }};
+  }
+heading: |-
+  :host { --ha-heading-card-title-font-size:18px; --ha-heading-card-title-font-weight:600; }
+  ha-card { background:none; border:none; box-shadow:none; padding:4px 2px 2px; }
+other: |-
+  /* Individually bounded zone cards, using the same surface as Home/Rooms. */
+  .other-zones { gap:12px; padding:8px 0 22px; }
+  .other-zones a {
+    display:grid; grid-template-columns:32px minmax(0,1fr); column-gap:10px; row-gap:5px;
+    align-content:center; min-width:0; min-height:92px; padding:14px 12px;
+    border:1px solid var(--divider-color); border-radius:16px;
+    background:var(--ha-card-background,var(--card-background-color));
+  }
+  .other-zones a>ha-icon { grid-row:1 / span 2; align-self:center; color:var(--secondary-text-color); --mdc-icon-size:24px; }
+  .other-zones a>strong { grid-column:2; font-size:15px; font-weight:600; line-height:21px; }
+  .other-zones a>span { grid-column:2; font-size:13px; line-height:20px; font-variant-numeric:tabular-nums; }
+  .other-zones a:hover { border-color:color-mix(in srgb,var(--primary-text-color) 24%,var(--divider-color)); }
+  @media(max-width:600px) {
+    .other-zones { gap:10px; }
+    .other-zones a { grid-template-columns:24px minmax(0,1fr); column-gap:8px; min-height:94px; padding:12px 10px; }
+  }

@@ -1,0 +1,360 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+datasource db {
+  provider = "postgresql"
+}
+enum NotificationKind {
+  ALARM
+  STRUCTURE
+}
+model SecurityEvent {
+  id String @id @default(uuid()) @db.Uuid
+  sourceInstallationId String @db.Uuid
+  nvrChannel Int
+  alarmType String @db.VarChar(100)
+  relatedId String @db.VarChar(256)
+  camera String? @db.VarChar(128)
+  alarmSeen Boolean @default(false)
+  occurredAt DateTime? @db.Timestamptz(3)
+  sourceUpdatedAt DateTime? @db.Timestamptz(3)
+  // Native end semantics are unknown. Capture never populates this field.
+  nativeEndedAt DateTime? @db.Timestamptz(3)
+  firstReceivedAt DateTime @db.Timestamptz(3)
+  lastReceivedAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  objects UniviewObject[]
+  notifications UniviewNotification[]
+  snapshots EventSnapshot[]
+  processing EvidenceProcessing?
+  analysis EventAnalysis?
+  @@index([sourceInstallationId, firstReceivedAt, id], map: "notification_source_scan_idx")
+  notificationEvaluations NotificationEvaluation[]
+  notificationIntent NotificationIntent?
+  @@unique([sourceInstallationId, nvrChannel, alarmType, relatedId], name: "univiewDetectionIdentity")
+  @@index([createdAt, id])
+  @@index([camera, occurredAt])
+}
+model UniviewNotification {
+  id String @id @default(uuid()) @db.Uuid
+  eventId String @db.Uuid
+  event SecurityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  kind NotificationKind
+  contentHash String @db.VarChar(64)
+  reportedAt DateTime? @db.Timestamptz(3)
+  receivedAt DateTime @db.Timestamptz(3)
+  personCount Int?
+  vehicleCount Int?
+  objectType String? @db.VarChar(100)
+  metadata Json @db.JsonB
+  schemaVersion Int @default(1)
+  snapshots EventSnapshot[]
+  objects UniviewObject[]
+  @@unique([eventId, kind, contentHash], name: "univiewNotificationIdentity")
+  @@unique([eventId, id])
+  @@index([eventId, receivedAt, id])
+  @@index([objectType, reportedAt])
+}
+model EventSnapshot {
+  id String @id @default(uuid()) @db.Uuid
+  eventId String @db.Uuid
+  event SecurityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  notificationId String? @db.Uuid
+  notification UniviewNotification? @relation(fields: [eventId, notificationId], references: [eventId, id], onDelete: Restrict)
+  origin String @db.VarChar(32)
+  sha256 String? @db.VarChar(64)
+  bytes Int?
+  width Int?
+  height Int?
+  status String @db.VarChar(32)
+  requestedAt DateTime? @db.Timestamptz(3)
+  acquiredAt DateTime? @db.Timestamptz(3)
+  imageOrdinal Int
+  sourceImageIndex Int?
+  imageType String? @db.VarChar(100)
+  declaredWidth Int?
+  declaredHeight Int?
+  capturedAt DateTime? @db.Timestamptz(3)
+  // Notification timestamps are never substituted for image capture time.
+  failureCode String? @db.VarChar(32)
+  // Historical references are enrichment only; original source/hash fields never change.
+  nvrPictureName String? @db.VarChar(256)
+  nvrPictureSize Int?
+  nvrPictureType Int?
+  nvrRecordId String? @db.VarChar(256)
+  referenceStatus String @default("UNRESOLVED") @db.VarChar(32)
+  referenceResolvedAt DateTime? @db.Timestamptz(3)
+  referenceVerifiedAt DateTime? @db.Timestamptz(3)
+  referenceCheckedAt DateTime? @db.Timestamptz(3)
+  referenceFailureCode String? @db.VarChar(64)
+  referenceProvenance Json? @db.JsonB
+  referenceVersion Int @default(0)
+  fullFrameObjects UniviewObject[] @relation("ObjectFullFrame")
+  cropObjects UniviewObject[] @relation("ObjectCrop")
+  @@unique([eventId, notificationId, id])
+  @@unique([notificationId, imageOrdinal])
+  @@unique([eventId, id])
+  @@index([eventId, capturedAt])
+}
+// One receiver-local window per canonical event. No leases, jobs or AI revisions.
+model EvidenceProcessing {
+  eventId String @id @db.Uuid
+  event SecurityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  status String @db.VarChar(32)
+  reason String? @db.VarChar(64)
+  startedAt DateTime @db.Timestamptz(3)
+  finishedAt DateTime? @db.Timestamptz(3)
+  analysisAttempts Int @default(0)
+  analysisRetries Int @default(0)
+  analysisStartedAt DateTime? @db.Timestamptz(3)
+}
+// Initial AI interpretation only. NVR facts remain in SecurityEvent/notifications.
+model EventAnalysis {
+  eventId String @id @db.Uuid
+  event SecurityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  revision Int @default(1)
+  objectAnalyses ObjectAnalysis[]
+  inputFingerprint String @db.VarChar(64)
+  model String @db.VarChar(128)
+  promptVersion Int
+  schemaVersion Int
+  activityLabel String @db.VarChar(64)
+  shortDescription String @db.VarChar(512)
+  subjects Json @db.JsonB
+  uncertainties Json @db.JsonB
+  evidence Json @db.JsonB
+  completedAt DateTime @db.Timestamptz(3)
+  @@index([activityLabel, completedAt])
+}
+
+// Notification-local source observations, never cross-notification tracks.
+model UniviewObject {
+  id String @id @default(uuid()) @db.Uuid
+  eventId String @db.Uuid
+  event SecurityEvent @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  notificationId String @db.Uuid
+  notification UniviewNotification @relation(fields: [eventId, notificationId], references: [eventId, id], onDelete: Restrict)
+  sourceList String @db.VarChar(128)
+  sourceOrdinal Int
+  sourceIdentifiers Json @db.JsonB
+  sourceCategoryCode String?
+  sourceSubtypeCode String?
+  category String @db.VarChar(32)
+  classificationBasis String @db.VarChar(32)
+  positionRaw String?
+  coordinateStatus String @db.VarChar(16)
+  xMin Int?
+  yMin Int?
+  xMax Int?
+  yMax Int?
+  sourceTimestamp DateTime? @db.Timestamptz(3)
+  timestampBasis String @db.VarChar(32)
+  fullFrameImageIndex Int?
+  cropImageIndex Int?
+  fullFrameSnapshotId String? @db.Uuid
+  fullFrameSnapshot EventSnapshot? @relation("ObjectFullFrame", fields: [eventId, notificationId, fullFrameSnapshotId], references: [eventId, notificationId, id], onDelete: Restrict)
+  cropSnapshotId String? @db.Uuid
+  cropSnapshot EventSnapshot? @relation("ObjectCrop", fields: [eventId, notificationId, cropSnapshotId], references: [eventId, notificationId, id], onDelete: Restrict)
+  zoneEvidence ObjectZoneEvidence?
+  memberships ObjectZoneMembership[]
+  analysis ObjectAnalysis?
+  projectionVersion Int @default(1)
+  @@unique([eventId, id])
+  @@unique([notificationId, sourceList, sourceOrdinal])
+  @@index([eventId, category])
+  @@index([category, sourceTimestamp, id])
+}
+
+model UniviewZone {
+  id String @id @default(uuid()) @db.Uuid
+  sourceInstallationId String @db.Uuid
+  channel Int
+  slot Int
+  displayName String @db.VarChar(128)
+  nameUpdatedAt DateTime @db.Timestamptz(3)
+  versions UniviewZoneVersion[]
+  preference ZonePreference?
+  @@unique([sourceInstallationId, channel, slot], name: "univiewZoneSlot")
+}
+// Local preferences use the stable installation/channel/slot identity, not versions.
+model ZonePreference {
+  zoneId String @id @db.Uuid
+  zone UniviewZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  displayName String? @db.VarChar(128)
+  interested Boolean @default(false)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+model UniviewZoneVersion {
+  id String @id @default(uuid()) @db.Uuid
+  zoneId String @db.Uuid
+  zone UniviewZone @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  revision Int
+  displayName String @db.VarChar(128)
+  nameEffectiveAt DateTime @db.Timestamptz(3)
+  enabled Boolean
+  ruleEnabled Boolean
+  polygon Json @db.JsonB
+  geometryFingerprint String @db.VarChar(64)
+  configuration Json? @db.JsonB
+  // Observation bounds, never claimed actual configuration-change times.
+  observedAt DateTime @db.Timestamptz(3)
+  lastObservedAt DateTime @db.Timestamptz(3)
+  evidence ObjectZoneEvidence[]
+  memberships ObjectZoneMembership[]
+  @@unique([zoneId, revision])
+  @@index([observedAt, lastObservedAt])
+}
+model ObjectZoneEvidence {
+  objectId String @id @db.Uuid
+  object UniviewObject @relation(fields: [objectId], references: [id], onDelete: Restrict)
+  status String @db.VarChar(32)
+  reason String @db.VarChar(64)
+  zoneVersionId String? @db.Uuid
+  zoneVersion UniviewZoneVersion? @relation(fields: [zoneVersionId], references: [id], onDelete: Restrict)
+  sourceRules Json @db.JsonB
+  provenance Json @db.JsonB
+  enrichedAt DateTime @db.Timestamptz(3)
+  algorithmVersion Int @default(1)
+  @@index([zoneVersionId])
+}
+model ObjectZoneMembership {
+  objectId String @db.Uuid
+  object UniviewObject @relation(fields: [objectId], references: [id], onDelete: Restrict)
+  zoneVersionId String @db.Uuid
+  zoneVersion UniviewZoneVersion @relation(fields: [zoneVersionId], references: [id], onDelete: Restrict)
+  relationship String @db.VarChar(16)
+  @@id([objectId, zoneVersionId])
+  @@index([zoneVersionId])
+}
+
+// Current per-object interpretation; never authoritative object identity or tracking.
+model ObjectAnalysis {
+  objectId String @id @db.Uuid
+  eventId String @db.Uuid
+  analysis EventAnalysis @relation(fields: [eventId], references: [eventId], onDelete: Restrict)
+  object UniviewObject @relation(fields: [eventId, objectId], references: [eventId, id], onDelete: Restrict)
+  observedType String @db.VarChar(32)
+  verification String @db.VarChar(16)
+  actions Json @db.JsonB
+  evidenceImages Json @db.JsonB
+  shortDescription String @db.VarChar(512)
+  uncertainties Json @db.JsonB
+  @@unique([eventId, objectId])
+  @@index([verification, observedType])
+}
+
+// Latest verified NVR configuration; events and media are independent.
+model CameraConfiguration {
+  sourceInstallationId String @db.Uuid
+  channel Int
+  snapshot Json? @db.JsonB
+  lastSuccessfulAt DateTime? @db.Timestamptz(3)
+  lastAttemptAt DateTime @db.Timestamptz(3)
+  failed Boolean @default(false)
+  @@id([sourceInstallationId, channel])
+}
+
+// Reviewable proposals only. Receiver does not read this table: attribution
+// coverage is insufficient for safe automatic exclusions at this milestone.
+model AiProcessingProposal {
+  sourceInstallationId String @id @db.Uuid
+  configuration Json @db.JsonB
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+// Local outbound notification proposals, independent of NVR notifications and AI.
+model NotificationConfiguration {
+  deliveryRevision Int @default(0)
+  deliveryUpdatedAt DateTime? @db.Timestamptz(3)
+  deliveryConfiguration Json? @db.JsonB
+  deliverySecret String? @db.Text
+  // Operator-only arm/cutoff: never writable by dashboard settings.
+  producerEnabled Boolean @default(false)
+  liveFromAt DateTime? @db.Timestamptz(3)
+  scannedAt DateTime? @db.Timestamptz(3)
+  scannedId String? @db.Uuid
+  sourceInstallationId String @id @db.Uuid
+  revision Int @default(1)
+  configuration Json @db.JsonB
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+// Explicitly saved preview audit, never a delivery queue. No source/event mutations.
+model NotificationEvaluation {
+  kind String @default("PREVIEW") @db.VarChar(16)
+  state String @default("AUDIT") @db.VarChar(24)
+  eventId String? @db.Uuid
+  event SecurityEvent? @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  availableAt DateTime? @db.Timestamptz(3)
+  intent NotificationIntent?
+  id String @id @default(uuid()) @db.Uuid
+  sourceInstallationId String @db.Uuid
+  fingerprint String @db.VarChar(64)
+  configurationRevision Int
+  configuration Json @db.JsonB
+  result Json @db.JsonB
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([sourceInstallationId, eventId])
+  @@index([sourceInstallationId, state, availableAt], map: "notification_evaluation_due_idx")
+  @@unique([sourceInstallationId, fingerprint])
+  @@index([sourceInstallationId, createdAt])
+}
+
+// One durable initial notification identity per canonical event, never per AI revision.
+model NotificationIntent {
+  parentId String? @unique @db.Uuid
+  parent NotificationIntent? @relation("NotificationEnrichment",fields:[parentId],references:[id],onDelete:Restrict)
+  enrichment NotificationIntent? @relation("NotificationEnrichment")
+  mode String @default("LIVE") @db.VarChar(8)
+  id String @id @default(uuid()) @db.Uuid
+  sourceInstallationId String @db.Uuid
+  eventId String? @unique @db.Uuid
+  event SecurityEvent? @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  evaluationId String? @unique @db.Uuid
+  evaluation NotificationEvaluation? @relation(fields: [evaluationId], references: [id], onDelete: Restrict)
+  destinationId String @db.VarChar(64)
+  payload Json @db.JsonB
+  state String @default("READY") @db.VarChar(24)
+  nextAttemptAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  attemptCount Int @default(0)
+  leaseToken String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamptz(3)
+  deliveredAt DateTime? @db.Timestamptz(3)
+  lastError String? @db.VarChar(64)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  attempts NotificationAttempt[]
+  cooldowns NotificationCooldown[]
+  @@index([sourceInstallationId, state, nextAttemptAt], map: "notification_intent_due_idx")
+  @@index([sourceInstallationId, mode, createdAt], map: "notification_test_history_idx")
+}
+model NotificationAttempt {
+  id String @id @default(uuid()) @db.Uuid
+  intentId String @db.Uuid
+  intent NotificationIntent @relation(fields: [intentId], references: [id], onDelete: Restrict)
+  ordinal Int
+  leaseToken String @db.Uuid
+  startedAt DateTime @db.Timestamptz(3)
+  finishedAt DateTime? @db.Timestamptz(3)
+  outcome String @db.VarChar(24)
+  httpStatus Int?
+  errorCode String? @db.VarChar(64)
+  durationMs Int?
+  mayHaveReached Boolean @default(false)
+  receipt String? @db.VarChar(16)
+  @@unique([intentId, ordinal])
+}
+model NotificationCooldown {
+  sourceInstallationId String @db.Uuid
+  scopeKey String @db.VarChar(64)
+  ruleId String @db.Uuid
+  channel Int
+  cooldownSeconds Int
+  lastDeliveredAt DateTime? @db.Timestamptz(3)
+  reservationId String? @db.Uuid
+  reservation NotificationIntent? @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  @@id([sourceInstallationId, scopeKey])
+}

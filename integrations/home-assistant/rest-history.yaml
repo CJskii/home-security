@@ -1,0 +1,28 @@
+# Merge these top-level blocks into configuration.yaml AFTER approval.
+# Existing configuration has neither rest: nor recorder:. Never duplicate keys.
+rest:
+  - resource: !secret home_security_summary_url
+    method: GET
+    headers:
+      Authorization: !secret home_security_history_authorization
+    scan_interval: 15
+    timeout: 10
+    sensor:
+      - name: Home Security History
+        unique_id: home_security_history_v1
+        value_template: "{{ value_json.generatedAt }}"
+        json_attributes:
+          - detectionsMarkdown
+          - notificationsMarkdown
+          - eventCount
+          - detections
+          - notificationRows
+          - zoneActivity
+          - dashboardUrl
+          - propertyDetections
+          - otherDetections
+# This is a current-state view of PostgreSQL, not another event archive.
+recorder:
+  exclude:
+    entities:
+      - sensor.home_security_history

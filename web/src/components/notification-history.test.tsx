@@ -1,0 +1,32 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router';
+import { NotificationHistory } from './notification-history';
+const at = '2026-10-21T12:00:00.000Z';
+let client: QueryClient;
+afterEach(() => { cleanup(); client?.clear(); vi.unstubAllGlobals(); });
+it('shows delivery-disabled history, matched/suppressed rules, uncertainty and attempts with GET requests only', async () => {
+    const request = vi.fn<typeof fetch>(async () => Response.json({ available: true, producerEnabled: false, deliveryEnabled: false, nextCursor: null, items: [{ id: 'evaluation', eventId: 'event', createdAt: at, revision: 7, state: 'EVALUATED', receivedAt: at, channel: 1, deliveryHeldReason: null, decisions: [{ ruleId: 'driveway', ruleName: 'My Driveway people', outcome: 'eligible', reason: 'source_category_and_zone', scopeKey: 'driveway:0', cooldownUntil: null, reservationId: null, objectIds: ['object'], zoneVersionIds: ['version'] }, { ruleId: 'another', ruleName: 'Other rule', outcome: 'cooldown', reason: 'cooldown_after_delivery', scopeKey: 'another:0', cooldownUntil: at, reservationId: null, objectIds: [], zoneVersionIds: [] }], intent: { id: 'notification', state: 'UNCERTAIN', attemptCount: 1, createdAt: at, deliveredAt: null, lastError: 'request_timeout_unknown', nextAttemptAt: at, attempts: [{ ordinal: 1, startedAt: at, finishedAt: at, outcome: 'UNCERTAIN', httpStatus: null, errorCode: 'request_timeout_unknown', durationMs: 10000, mayHaveReached: true, receipt: null }] } }] }));
+    vi.stubGlobal('fetch', request);
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<MemoryRouter><QueryClientProvider client={client}><NotificationHistory /></QueryClientProvider></MemoryRouter>);
+    expect(await screen.findByText(/Delivery disabled · live event capture is disarmed/)).toBeTruthy();
+    await userEvent.click(screen.getByText(/Camera 1 · Uncertain · 1 attempts/i));
+    expect(screen.getByText('My Driveway people')).toBeTruthy();
+    expect(screen.getByText(/Cooldown after delivery/i)).toBeTruthy();
+    expect(screen.getByText(/Automatic retries are held pending reconciliation/)).toBeTruthy();
+    expect(screen.getByText(/Attempt 1/).textContent).toContain('10000 ms');
+    expect(screen.getByRole('link', { name: 'Open canonical event' }).getAttribute('href')).toBe('/explore?event=event');
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+    expect(request.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
+});
+it('shows empty and unavailable ledgers without activation controls', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ available: false, producerEnabled: false, deliveryEnabled: false, nextCursor: null, items: [] })));
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={client}><NotificationHistory /></QueryClientProvider>);
+    expect(await screen.findByText(/Delivery ledger migration required/)).toBeTruthy();
+    expect(screen.getByText(/historical events are never queued/)).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+});

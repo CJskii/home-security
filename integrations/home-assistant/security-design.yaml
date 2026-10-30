@@ -1,0 +1,203 @@
+# Presentation-only blueprint. Expanded by prepare-ha-security-design.py.
+# All templates are scoped to this Security view. No services or HA state writes.
+button_card_templates:
+  hs_design_base:
+    variables:
+      camera_labels: {Camera 1: Driveway, Camera 2: Side Walkway}
+    show_icon: false
+    show_name: false
+    show_state: false
+    tap_action: {action: none}
+    hold_action: {action: none}
+    double_tap_action: {action: none}
+    styles:
+      card:
+        - border: var(--ha-card-border-width, 1px) solid var(--ha-card-border-color, var(--divider-color))
+        - border-radius: var(--ha-card-border-radius, 12px)
+        - box-shadow: none
+        - padding: 0
+        - background: var(--ha-card-background, var(--card-background-color))
+        - color: var(--primary-text-color)
+        - font-size: 14px
+      grid:
+        - grid-template-areas: '"body"'
+        - grid-template-columns: minmax(0,1fr)
+      custom_fields:
+        body:
+          - min-width: 0
+          - text-align: left
+          - white-space: normal
+          - pointer-events: auto
+          - position: relative
+          - z-index: 1
+    extra_styles: |
+      * { box-sizing: border-box; }
+      a { color: inherit; text-decoration: none; }
+      a:focus-visible, summary:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; border-radius: 8px; }
+      .muted { color: var(--secondary-text-color); }
+      .heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+      .heading strong { font-size:18px; font-weight:400; }
+      .heading a { font-size:13px; color:var(--secondary-text-color); padding:6px 0 6px 8px; }
+      .panel { padding:18px 20px; }
+      .empty { padding:12px 0; font-size:14px; color:var(--secondary-text-color); }
+      #container ha-icon { width:22px; height:22px; flex:0 0 22px; --mdc-icon-size:22px; }
+      @media(max-width:600px) { .panel { padding:16px; } }
+  hs_design_zone:
+    template: hs_design_base
+    entity: sensor.home_security_history
+    triggers_update: [sensor.home_security_history]
+    variables:
+      channel: 1
+      slot: 0
+      zone_name: My Driveway
+      navigation: /master-home/security-front-right
+    tap_action:
+      action: navigate
+      navigation_path: '[[[ return variables.navigation; ]]]'
+    custom_fields:
+      body: |
+        [[[ const s=states['sensor.home_security_history'];
+        const z=s?.attributes?.zoneActivity?.find(z=>z.channel===variables.channel&&z.slot===variables.slot);
+        const fresh=Number.isFinite(Date.parse(s?.state))&&Date.now()-Date.parse(s.state)<90000;
+        const at=z?.lastActivityAt&&new Date(z.lastActivityAt);
+        const time=at?new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(at):null;
+        const label=!fresh?'Activity unavailable':!z?'Configuration unavailable':!z.enabled?'Rule disabled':z.stale?'Last verified · sync stale':time?'Last verified activity':'No verified activity';
+        return html`<div class="zone"><div class="zone-top"><span class="zone-icon"><ha-icon icon="mdi:shield-home-outline"></ha-icon></span><span class="zone-name">${variables.zone_name}</span><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></div><div class="zone-label">${label}</div><div class="zone-time">${fresh&&z?.enabled&&time?time:'—'}</div></div>`; ]]]
+    extra_styles: |
+      .zone { padding:14px 16px; }
+      .zone-top { display:flex; align-items:center; gap:10px; }
+      .zone-icon { color:var(--teal-color, #009688); display:grid; place-items:center; }
+      .zone-name { font-size:15px; font-weight:500; flex:1; }
+      .arrow { color:var(--secondary-text-color); opacity:.65; --mdc-icon-size:18px; }
+      .zone-label { margin-top:10px; font-size:12px; color:var(--secondary-text-color); }
+      .zone-time { margin-top:2px; font-size:20px; font-weight:500; font-variant-numeric:tabular-nums; }
+      @media(max-width:600px) { .zone { padding:12px; } .zone-name { font-size:14px; white-space:nowrap; } .zone .arrow { display:none; } .zone { padding:12px; } .zone-top { gap:8px; } .zone-label { margin-top:8px; } .zone-time { font-size:18px; } }
+  hs_design_activity:
+    template: hs_design_base
+    entity: sensor.home_security_history
+    triggers_update: [sensor.home_security_history]
+    variables:
+      index: 0
+      row: "[[[ return states['sensor.home_security_history']?.attributes?.propertyDetections?.[variables.index]; ]]]"
+    tap_action:
+      action: '[[[ return variables.row ? "url" : "none"; ]]]'
+      url_path: '[[[ return variables.row?.url; ]]]'
+    custom_fields:
+      body: |
+        [[[ const r=variables.row;const s=states['sensor.home_security_history'];
+        if(!r)return html`<div class="activity empty">No recent verified detection</div>`;
+        const parts=r.title.split(' · '),category=parts.shift(),zone=parts.join(' · ');
+        return html`<div class="activity"><div class="thumb"><ha-icon icon=${r.icon}></ha-icon>${r.thumbnail?html`<img src=${r.thumbnail} alt="Original detection crop" loading="lazy" @error=${e=>{const img=e.currentTarget;const n=Number(img.dataset.retry??0);if(n<2){img.dataset.retry=String(n+1);setTimeout(()=>{if(img.isConnected)img.src=r.thumbnail;},2200*(n+1));}else img.hidden=true;}} />`:''}</div><div class="copy"><div class="item-title">${category}<span class="zone-pill">${zone}</span></div><div class="item-meta">${variables.camera_labels[r.cameraLabel]??r.cameraLabel} · ${r.time}</div><div class="description">${r.subtitle}</div></div><ha-icon class="arrow" icon="mdi:arrow-top-right"></ha-icon></div>`; ]]]
+    styles:
+      card:
+        - display: '[[[ const s=states["sensor.home_security_history"];return variables.row && Date.now()-Date.parse(s?.state)<90000?"block":"none"; ]]]'
+    extra_styles: |
+      .activity { display:grid; grid-template-columns:64px minmax(0,1fr) 16px; align-items:center; gap:14px; padding:16px; min-height:112px; }
+      .thumb { position:relative; width:64px; height:76px; border-radius:10px; background:var(--secondary-background-color); display:grid; place-items:center; overflow:hidden; }
+      .thumb ha-icon { color:var(--secondary-text-color); }
+      .thumb img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; }
+      .thumb img[hidden] { display:none; }
+      .copy { min-width:0; }
+      .item-title { display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; font-size:16px; font-weight:500; line-height:22px; }
+      .zone-pill { color:var(--secondary-text-color); font-size:13px; font-weight:400; }
+      .item-meta { color:var(--secondary-text-color); font-size:13px; line-height:19px; margin-top:3px; }
+      .description { font-size:15px; line-height:20px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+      .arrow { --mdc-icon-size:16px; color:var(--secondary-text-color); opacity:.6; }
+      @media(max-width:600px) { .activity { padding:12px; gap:12px; grid-template-columns:56px minmax(0,1fr) 14px; min-height:108px; } .thumb { width:56px; height:72px; } .item-title { font-size:16px; } .item-meta { font-size:13px; } }
+  hs_design_camera:
+    template: hs_design_base
+    show_name: false
+    variables: {camera_name: Camera}
+    styles:
+      card:
+        - border: none
+        - border-radius: 0px
+    tap_action: {action: more-info}
+    custom_fields:
+      body: |
+        [[[ const state=entity?.state;const available=state&&!['unknown','unavailable'].includes(state);
+        return html`<div class="camera-heading"><span><ha-icon icon="mdi:cctv"></ha-icon><strong>${variables.camera_name}</strong></span><span class="availability"><i class=${available?'ready':'offline'}></i>${available?'Available':'Unavailable'}</span></div>`; ]]]
+    extra_styles: |
+      .camera-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; }
+      .camera-heading>span { display:flex; align-items:center; gap:9px; }
+      .camera-heading strong { font-size:16px; font-weight:500; }
+      .camera-heading ha-icon { color:var(--secondary-text-color); --mdc-icon-size:20px; }
+      .availability { color:var(--secondary-text-color); font-size:12px; }
+      .availability i { width:6px; height:6px; border-radius:50%; background:var(--disabled-text-color); }
+      .availability .ready { background:var(--teal-color,#009688); }
+      .availability .offline { background:var(--warning-color); }
+  hs_design_notifications:
+    template: hs_design_base
+    entity: sensor.home_security_history
+    triggers_update: [sensor.home_security_history]
+    custom_fields:
+      body: |
+        [[[ const s=states['sensor.home_security_history'];const fresh=Date.now()-Date.parse(s?.state)<90000;const rows=fresh?s?.attributes?.notificationRows??[]:[];
+        return html`<div class="panel"><div class="heading"><strong>Notifications</strong><a @click=${e=>e.stopPropagation()} href="https://security.example.com/settings" target="_blank" rel="noopener">History & settings ↗</a></div><div class="notice-list">${rows.slice(0,4).map(r=>html`<a @click=${e=>e.stopPropagation()} class="notice" href=${r.url} target="_blank" rel="noopener"><span class=${'notice-icon '+(r.tone==='red'?'error':r.tone==='amber'?'warning':r.status==='Webhook accepted'?'accepted':'')}><ha-icon icon=${r.icon}></ha-icon></span><span class="notice-copy"><strong>${r.title.replace(/^Camera [12]/,name=>variables.camera_labels[name]??name)}</strong><span>${r.time}</span></span><ha-icon class="arrow" icon="mdi:chevron-right"></ha-icon></a>`)}</div>${!rows.length?html`<div class="empty">${fresh?'No recent notification outcomes':'History unavailable'}</div>`:''}<div class="footnote">Webhook acceptance does not confirm phone display.</div></div>`; ]]]
+    extra_styles: |
+      .notice { display:flex; align-items:center; gap:12px; padding:11px 0; border-top:1px solid color-mix(in srgb,var(--primary-text-color) 7%,transparent); }
+      .notice-icon { display:grid; place-items:center; color:var(--secondary-text-color); }
+      .notice-icon.accepted { color:var(--teal-color,#009688); }
+      .notice-icon.error { color:var(--error-color); }
+      .notice-icon.warning { color:var(--warning-color); }
+      .notice-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+      .notice-copy strong { font-size:14px; font-weight:500; line-height:19px; }
+      .notice-copy>span { font-size:13px; color:var(--secondary-text-color); }
+      .arrow { color:var(--secondary-text-color); --mdc-icon-size:16px; }
+      .footnote { font-size:12px; color:var(--secondary-text-color); line-height:18px; margin-top:12px; }
+  hs_design_other:
+    template: hs_design_base
+    entity: sensor.home_security_history
+    triggers_update: [sensor.home_security_history]
+    custom_fields:
+      body: |
+        [[[ const s=states['sensor.home_security_history'];const fresh=Date.now()-Date.parse(s?.state)<90000;const zones=s?.attributes?.zoneActivity??[];const rows=fresh?s?.attributes?.otherDetections??[]:[];
+        const fmt=t=>new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(t));
+        const specs=[['Road',1,3],['Neighbour A',1,1],['Neighbour B · Driveway',1,2],['Neighbour B · Side Walkway',2,1]];
+        return html`<details ?open=${this._hsOtherOpen??false} @toggle=${e=>{this._hsOtherOpen=e.currentTarget.open;}}><summary tabindex="0" @keydown=${e=>{if(e.key==='Enter'||e.key===' '){e.stopPropagation();e.preventDefault();const d=e.currentTarget.closest('details');d.open=!d.open;this._hsOtherOpen=d.open;}}} @click=${e=>{e.stopPropagation();e.preventDefault();const d=e.currentTarget.closest('details');d.open=!d.open;this._hsOtherOpen=d.open;}}><span class="summary-icon"><ha-icon icon="mdi:map-marker-outline"></ha-icon></span><span class="summary-title"><strong>Other camera activity</strong><span>Road, Neighbour A & Neighbour B · verified locations</span></span><span class="expand-label">Show</span><ha-icon class="chevron" icon="mdi:chevron-down"></ha-icon></summary><div class="other-body"><div class="other-zones">${specs.map(([name,channel,slot])=>{const z=zones.find(z=>z.channel===channel&&z.slot===slot);return html`<a @click=${e=>e.stopPropagation()} href=${'https://security.example.com/explore?location='+(z?.zoneId??'other')} target="_blank" rel="noopener"><strong>${name}</strong><span>${!fresh?'Activity unavailable':!z?'Configuration unavailable':!z.enabled?'Rule disabled':z.lastActivityAt?fmt(z.lastActivityAt)+(z.stale?' · sync stale':''):'No verified activity'}</span></a>`})}</div><div class="heading"><strong>Recent activity</strong><a @click=${e=>e.stopPropagation()} href="https://security.example.com/explore?location=other" target="_blank" rel="noopener">View all ↗</a></div>${rows.slice(0,2).map(r=>html`<a @click=${e=>e.stopPropagation()} class="other-row" href=${r.url} target="_blank" rel="noopener"><ha-icon icon=${r.icon}></ha-icon><span><strong>${r.title}</strong><span>${variables.camera_labels[r.cameraLabel]??r.cameraLabel} · ${r.time}</span></span><ha-icon class="other-arrow" icon="mdi:arrow-top-right"></ha-icon></a>`)}${!rows.length?html`<div class="empty">${fresh?'No recent verified activity':'History unavailable'}</div>`:''}</div></details>`; ]]]
+    extra_styles: |
+      details { color:var(--secondary-text-color); }
+      summary { display:flex; align-items:center; gap:14px; padding:18px 20px; list-style:none; cursor:pointer; }
+      summary::-webkit-details-marker { display:none; }
+      .summary-title { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+      .summary-title strong { color:var(--primary-text-color); font-size:16px; font-weight:500; }
+      .summary-title>span { font-size:13px; line-height:18px; }
+      .expand-label { font-size:13px; }
+      .chevron { --mdc-icon-size:20px; transition:transform .15s; }
+      details[open] .chevron { transform:rotate(180deg); }
+      details[open] .expand-label { display:none; }
+      .other-body { padding:0 20px 16px; }
+      .other-zones { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; padding:8px 0 22px; }
+      .other-zones a { display:flex; flex-direction:column; gap:8px; }
+      .other-zones strong { color:var(--primary-text-color); font-size:14px; font-weight:500; }
+      .other-zones span { font-size:13px; }
+      .other-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid color-mix(in srgb,var(--primary-text-color) 7%,transparent); }
+      .other-row>span { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+      .other-row strong { color:var(--primary-text-color); font-size:14px; font-weight:500; }
+      .other-row>span>span { font-size:13px; }
+      .other-arrow { --mdc-icon-size:16px; }
+      @media(max-width:600px) { summary { padding:16px; gap:10px; } .summary-title strong { font-size:15px; } .summary-title>span { font-size:12px; } .other-body { padding:0 16px 12px; } .other-zones { grid-template-columns:repeat(2,minmax(0,1fr)); } .expand-label { display:none; } }
+# Applied only to the existing Motion/Presence cards by the focused style patch.
+status_styles:
+  surface: >-
+    ha-card { border:var(--ha-card-border-width,1px) solid var(--ha-card-border-color,var(--divider-color));
+    border-radius:var(--ha-card-border-radius,12px); box-shadow:none; padding:12px;
+    background:var(--ha-card-background,var(--card-background-color)); }
+  heading: >-
+    ha-card { border:none; background:none; padding:2px 4px 6px; }
+    :host { --ha-heading-card-title-font-size:18px; --ha-heading-card-title-font-weight:400; }
+  common: |-
+    ha-card {
+      border:none; box-shadow:none; background:transparent; border-radius:8px;
+      min-height:68px; --mush-spacing:8px; --mush-icon-size:36px;
+      --mush-card-primary-font-size:14px; --mush-card-primary-font-weight:500;
+      --mush-card-secondary-font-size:14px; --mush-card-secondary-line-height:20px;
+    }
+  motion: |-
+    ha-card {
+      border-inline-start:2px solid {{ 'var(--state-active-color,var(--amber-color,#ffc107))' if is_state(config.entity,'on') else 'transparent' }};
+    }
+  presence: |-
+    ha-card {
+      border-inline-start:2px solid {{ 'color-mix(in srgb,var(--success-color,#4caf50) 55%,transparent)' if is_state(config.entity,'home') else 'var(--divider-color)' }};
+    }

@@ -1,0 +1,19 @@
+# Presentation-only variant; inherits exact zone identity, refresh and history action.
+template: hs_design_zone
+custom_fields:
+  body: >-
+    [[[ const s=states['sensor.home_security_history'];
+    const z=s?.attributes?.zoneActivity?.find(z=>z.channel===variables.channel&&z.slot===variables.slot);
+    const fresh=Number.isFinite(Date.parse(s?.state))&&Date.now()-Date.parse(s.state)<90000;
+    const label=!fresh?'Activity unavailable':!z?'Configuration unavailable':!z.enabled?'Rule disabled':z.lastActivityAt?variables.history.relativeZoneTime(z.lastActivityAt):'No verified activity';
+    return html`<div class="compact-zone"><ha-icon class="compact-zone-icon" icon=${variables.zone_icon??'mdi:map-marker-outline'}></ha-icon><div class="compact-zone-copy"><div class="compact-zone-heading" title=${variables.zone_name}>${variables.zone_name}</div><div class="compact-zone-time">${label}</div></div></div>`; ]]]
+styles:
+  card:
+    - height: 76px
+    - min-height: 76px
+extra_styles: |
+  .compact-zone { box-sizing:border-box; height:76px; padding:12px; display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; gap:10px; text-align:left; }
+  .compact-zone .compact-zone-icon { display:inline-flex!important; align-items:center; justify-content:center; margin:0!important; width:22px!important; height:22px!important; --mdc-icon-size:22px; color:var(--teal-color,#009688); }
+  .compact-zone-copy { display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .compact-zone-heading { min-width:0; font-size:14px; font-weight:500; line-height:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .compact-zone-time { font-size:13px; font-weight:400; line-height:18px; color:var(--secondary-text-color); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }

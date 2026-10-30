@@ -1,0 +1,25 @@
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { createRef } from "react";
+import { afterEach, expect, it } from "vitest";
+import { LiveZones } from "./live-zones";
+import type { CameraZone } from "@/lib/zones";
+afterEach(cleanup);
+it("waits for actual image dimensions and follows intrinsic video resize with SVG meet", () => {
+  const host = createRef<HTMLDivElement>();
+  const video = document.createElement("video");
+  const zone: CameraZone = { id: "zone", name: "Test zone", slot: 0, current: { enabled: true, ruleEnabled: true, observedAt: "", polygon: [{ X: 0, Y: 0 }, { X: 10000, Y: 0 }, { X: 10000, Y: 10000 }, { X: 0, Y: 10000 }] } };
+  const view = render(<div ref={host} />);host.current!.append(video);
+  view.rerender(<><div ref={host} /><LiveZones host={host} zones={[zone]} name="Camera" /></>);
+  expect(screen.queryByRole("img")).toBeNull();
+  Object.defineProperty(video, "videoWidth", { value: 1280, configurable: true });
+  Object.defineProperty(video, "videoHeight", { value: 720, configurable: true });
+  act(() => { video.dispatchEvent(new Event("loadedmetadata")); });
+  const svg = screen.getByRole("img");
+  expect(svg.getAttribute("viewBox")).toBe("0 0 1280 720");
+  expect(svg.getAttribute("preserveAspectRatio")).toBe("xMidYMid meet");
+  expect(svg.querySelector("polygon")?.getAttribute("points")).toBe("0,0 1280,0 1280,720 0,720");
+  Object.defineProperty(video, "videoWidth", { value: 1920, configurable: true });
+  Object.defineProperty(video, "videoHeight", { value: 1080, configurable: true });
+  act(() => { video.dispatchEvent(new Event("resize")); });
+  expect(svg.getAttribute("viewBox")).toBe("0 0 1920 1080");
+});

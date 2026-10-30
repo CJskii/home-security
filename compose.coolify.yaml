@@ -1,0 +1,176 @@
+# Existing Coolify deployment, including the private live-camera gateway.
+# PostgreSQL and Ollama remain existing resources; no new database/model service.
+# Receiver/worker require explicit profiles AND an exclusive-owner cutover.
+name: home-security-coolify
+x-runtime: &runtime
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 128
+  mem_limit: 512m
+  stop_grace_period: 45s
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: '3'}
+x-application-environment: &application-environment
+  NODE_ENV: production
+  HOST: 0.0.0.0
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: ${DATABASE_URL:?Use existing security-db; never create another database}
+  DB_POOL_MAX: ${DB_POOL_MAX:-5}
+  DB_CHECK_TIMEOUT_MS: ${DB_CHECK_TIMEOUT_MS:-2000}
+  SHUTDOWN_TIMEOUT_MS: ${SHUTDOWN_TIMEOUT_MS:-30000}
+  EVENTS_TOKEN: ${EVENTS_TOKEN:?Preserve existing bearer token}
+  METRICS_ENABLED: ${METRICS_ENABLED:-false}
+  METRICS_TOKEN: ${METRICS_TOKEN:-}
+  CAMERA_SYNC_TOKEN: ${CAMERA_SYNC_TOKEN:?Preserve receiver control token}
+  UNIVIEW_ENABLED: ${UNIVIEW_ENABLED:?Preserve current receiver setting}
+  UNIVIEW_INSTALLATION_ID: ${UNIVIEW_INSTALLATION_ID:?Preserve installation identity}
+  UNIVIEW_NVR_IP: ${UNIVIEW_NVR_IP:?Existing NVR address}
+  UNIVIEW_CAMERA_MAP: ${UNIVIEW_CAMERA_MAP:?Preserve exact channel-camera mapping}
+  UNIVIEW_USERNAME: ${UNIVIEW_USERNAME:?Existing server-side NVR user}
+  UNIVIEW_PASSWORD: ${UNIVIEW_PASSWORD:?Existing server-side NVR password}
+  UNIVIEW_SAMPLING_ENABLED: ${UNIVIEW_SAMPLING_ENABLED:-false}
+  UNIVIEW_SAMPLE_DELAYS_MS: ${UNIVIEW_SAMPLE_DELAYS_MS:-5000,15000}
+  UNIVIEW_MAX_ACTIVE_WINDOWS: ${UNIVIEW_MAX_ACTIVE_WINDOWS:-2}
+  UNIVIEW_MEMORY_BYTES: ${UNIVIEW_MEMORY_BYTES:-64000000}
+  UNIVIEW_PROCESSING_TIMEOUT_MS: ${UNIVIEW_PROCESSING_TIMEOUT_MS:-180000}
+  UNIVIEW_SNAPSHOT_TIMEOUT_MS: ${UNIVIEW_SNAPSHOT_TIMEOUT_MS:-5000}
+  UNIVIEW_REQUEST_TIMEOUT_MS: ${UNIVIEW_REQUEST_TIMEOUT_MS:-15000}
+  AI_ENABLED: ${AI_ENABLED:?Preserve AI enablement}
+  AI_BASE_URL: ${AI_BASE_URL:?Existing Ollama URL on infrastructure-net}
+  AI_ENABLEMENT_CUTOFF: ${AI_ENABLEMENT_CUTOFF:?Preserve historical cutoff}
+  AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-120000}
+services:
+  api:
+    <<: *runtime
+    # Freeze the actual approved running image, not a rebuild of newer HEAD.
+    image: ${API_IMAGE:?Set the verified production API image}
+    pull_policy: never
+    environment:
+      <<: *application-environment
+      PORT: '3000'
+      SERVICE_NAME: home-security-api
+      AI_MODEL: ${API_AI_MODEL:-qwen3-vl:4b-instruct}
+      CAMERA_SYNC_OWNER_URL: http://receiver:18080/
+      DASHBOARD_ORIGIN: https://${DASHBOARD_HOST:?Choose the LAN domain}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:?Existing dashboard password}
+      DASHBOARD_SESSION_KEY: ${DASHBOARD_SESSION_KEY:?Existing session key}
+      LIVE_GATEWAY_ENABLED: 'true'
+      HA_HISTORY_TOKEN: ${HA_HISTORY_TOKEN:?Existing scoped HA summary token}
+      NOTIFICATION_MEDIA_KEY: ${NOTIFICATION_MEDIA_KEY:?Existing media signing key}
+      NOTIFICATION_MEDIA_ORIGIN: ${NOTIFICATION_MEDIA_ORIGIN:?Preserve current LAN media origin}
+      NOTIFICATION_DASHBOARD_ORIGIN: ${NOTIFICATION_DASHBOARD_ORIGIN:?Preserve existing event links}
+      NOTIFICATION_CREDENTIAL_KEY: ${NOTIFICATION_CREDENTIAL_KEY:?Existing destination encryption key}
+      NOTIFICATION_APPROVED_DESTINATIONS: ${NOTIFICATION_APPROVED_DESTINATIONS:?Preserve saved destination allowlist}
+    # Preserve existing HA REST and signed phone-media consumers at the LAN API.
+    ports: ['127.0.0.1:3000:3000', '${LAN_IP:?Set the host LAN IPv4 address}:3000:3000']
+    networks: [app, coolify, infrastructure]
+    labels: ['traefik.enable=false']
+  receiver:
+    <<: *runtime
+    profiles: [capture]
+    image: ${RECEIVER_IMAGE:?Set the verified production receiver image}
+    pull_policy: never
+    command: [node, dist/receiver.js]
+    environment:
+      <<: *application-environment
+      PORT: '18080'
+      SERVICE_NAME: home-security-receiver
+      AI_MODEL: ${AI_MODEL:?Preserve the active receiver model}
+      AI_ZONE_SELECTION_ENABLED: ${AI_ZONE_SELECTION_ENABLED:?Preserve existing enforcement flag}
+    ports: ['${LAN_IP:?Set the host LAN IPv4 address}:18080:18080']
+    networks: [app, coolify, infrastructure]
+    mem_limit: 1g
+    memswap_limit: 1g
+    ulimits: {core: {soft: 0, hard: 0}}
+    labels: ['traefik.enable=false']
+  notification-worker:
+    <<: *runtime
+    profiles: [notifications]
+    image: ${WORKER_IMAGE:?Set the verified production notification worker image}
+    pull_policy: never
+    command: [node, dist/notification-worker.js]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${WORKER_DATABASE_URL:?Preserve the existing restricted worker database login}
+      UNIVIEW_INSTALLATION_ID: ${UNIVIEW_INSTALLATION_ID:?Existing installation UUID}
+      NOTIFICATION_WORKER_ENABLED: ${NOTIFICATION_WORKER_ENABLED:?Preserve the existing worker switch}
+      NOTIFICATION_DELIVERY_ENABLED: ${NOTIFICATION_DELIVERY_ENABLED:?Preserve delivery switch}
+      NOTIFICATION_ACTIVATED_AT: ${NOTIFICATION_ACTIVATED_AT:?Preserve the original no-replay cutoff}
+      NOTIFICATION_AI_UPDATES_ENABLED: ${NOTIFICATION_AI_UPDATES_ENABLED:?Preserve update switch}
+      NOTIFICATION_AI_UPDATES_FROM: ${NOTIFICATION_AI_UPDATES_FROM:?Preserve update cutoff}
+      NOTIFICATION_CREDENTIAL_KEY: ${NOTIFICATION_CREDENTIAL_KEY:?Existing destination encryption key}
+      NOTIFICATION_APPROVED_DESTINATIONS: ${NOTIFICATION_APPROVED_DESTINATIONS:?Existing pinned destinations}
+      NOTIFICATION_MEDIA_KEY: ${NOTIFICATION_MEDIA_KEY:?Existing media key}
+      NOTIFICATION_MEDIA_ORIGIN: ${NOTIFICATION_MEDIA_ORIGIN:?Existing LAN media origin}
+      NOTIFICATION_DASHBOARD_ORIGIN: ${NOTIFICATION_DASHBOARD_ORIGIN:?Existing event links}
+    networks: [app, coolify]
+    mem_limit: 384m
+    # Local successful-loop heartbeat; never probe the API on the worker's behalf.
+    healthcheck:
+      test: [CMD, node, dist/notifications/worker-health.js]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    labels: ['traefik.enable=false']
+  gateway:
+    <<: *runtime
+    image: home-security-gateway:coolify
+    pull_policy: never
+    build: {context: ., dockerfile: deploy/live/Dockerfile}
+    environment:
+      SECURITY_GATEWAY_USER: ${SECURITY_GATEWAY_USER:?Existing server-only gateway user}
+      SECURITY_GATEWAY_PASSWORD: ${SECURITY_GATEWAY_PASSWORD:?Existing server-only gateway password}
+      NVR_C1_SUB_RTSP: ${NVR_C1_SUB_RTSP:?Existing Camera 1 H264 substream URL, server-only}
+      NVR_C2_SUB_RTSP: ${NVR_C2_SUB_RTSP:?Existing Camera 2 H264 substream URL, server-only}
+    # Override the base image's /config volume with RAM; the template lives in /etc.
+    tmpfs: ["/config:rw,noexec,nosuid,size=1m", "/tmp:rw,noexec,nosuid,size=16m"]
+    networks: [app]
+    labels: ['traefik.enable=false']
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          auth=$$(printf '%s:%s' "$$SECURITY_GATEWAY_USER" "$$SECURITY_GATEWAY_PASSWORD" | base64 | tr -d '\n');
+          wget -q -O /dev/null --header="Authorization: Basic $$auth" http://127.0.0.1:1984/api/streams
+      interval: 15s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+    logging: {driver: none}
+  dashboard:
+    <<: *runtime
+    image: home-security-dashboard:coolify
+    pull_policy: never
+    build: {context: ., dockerfile: web/Dockerfile, target: runtime}
+    environment:
+      PORT: '8080'
+      DASHBOARD_ORIGIN: https://${DASHBOARD_HOST:?Choose the LAN domain}
+      DASHBOARD_API_ORIGIN: http://api:3000
+      LIVE_GATEWAY_ENABLED: 'true'
+      SECURITY_GATEWAY_ORIGIN: http://gateway:1984
+      SECURITY_GATEWAY_USER: ${SECURITY_GATEWAY_USER:?Existing server-only gateway user}
+      SECURITY_GATEWAY_PASSWORD: ${SECURITY_GATEWAY_PASSWORD:?Existing server-only gateway password}
+    depends_on: {api: {condition: service_healthy}, gateway: {condition: service_healthy}}
+    networks: [app, infrastructure]
+    # Raw Compose appends Coolify labels; keep list form (not a mixed map).
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=${INFRASTRUCTURE_NETWORK:-infrastructure-net}'
+      - 'traefik.http.routers.home-security-local-secure.entrypoints=websecure'
+      - 'traefik.http.routers.home-security-local-secure.rule=Host(`${DASHBOARD_HOST:?Choose the LAN domain}`)'
+      - 'traefik.http.routers.home-security-local-secure.tls=true'
+      - 'traefik.http.routers.home-security-local-secure.tls.certresolver=letsencrypt'
+      - 'traefik.http.routers.home-security-local-secure.service=home-security-dashboard'
+      - 'traefik.http.routers.home-security-local-secure.middlewares=home-security-lan'
+      - 'traefik.http.middlewares.home-security-lan.ipallowlist.sourcerange=${DASHBOARD_ALLOWED_CIDRS:?Set the trusted client CIDRs}'
+      - 'traefik.http.services.home-security-dashboard.loadbalancer.server.port=8080'
+networks:
+  app: {}
+  coolify: {external: true, name: "${COOLIFY_NETWORK:-coolify}"}
+  infrastructure: {external: true, name: "${INFRASTRUCTURE_NETWORK:-infrastructure-net}"}

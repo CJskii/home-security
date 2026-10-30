@@ -1,0 +1,5 @@
+# Reviewed one-module hotfix on the actual approved API image. Build context is
+# just the compiled nvr-service.js, never a rebuild of unrelated backend modules.
+ARG API_BASE_IMAGE=home-security-api:media-baseline
+FROM ${API_BASE_IMAGE}
+COPY --chown=node:node nvr-service.js /app/dist/events/nvr-service.js

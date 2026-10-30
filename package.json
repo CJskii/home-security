@@ -1,0 +1,61 @@
+{
+  "name": "residential-security-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node scripts/dashboard-dev.mjs",
+    "start": "node dist/server.js",
+    "build": "npm run prisma:generate && node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "lint": "eslint . --max-warnings=0",
+    "check": "npm run prisma:generate && npm run prisma:validate && npm run lint && npm run typecheck && npm test && npm run build",
+    "dev:setup": "node scripts/dashboard-setup.mjs",
+    "dev:lan": "node scripts/dashboard-dev.mjs --lan",
+    "dev:api": "tsx watch src/dashboard/development.ts",
+    "dev:service": "tsx watch src/server.ts",
+    "dev:smoke": "tsx scripts/dashboard-smoke.ts",
+    "zones:preferences": "tsx scripts/zone-preferences.ts",
+    "notifications:worker": "tsx src/notification-worker.ts"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "^11.2.1",
+    "@fastify/secure-session": "^8.4.1",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "@prometheus-io/client": "0.16.1",
+    "dotenv": "18.0.7",
+    "fastify": "5.12.5",
+    "fastify-type-provider-zod": "6.1.0",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "sharp": "0.35.5",
+    "zod": "4.6.5"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.4.3",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "eslint": "10.12.0",
+    "prisma": "7.10.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.1",
+    "vitest": "4.1.11"
+  },
+  "packageManager": "npm@11.19.0"
+}

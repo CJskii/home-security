@@ -1,0 +1,90 @@
+--- master-home.original.yaml
++++ master-home.proposed.yaml
+@@ -3487,21 +3487,21 @@
+           cards:
+           - type: custom:button-card
+             template: hs_design_camera
+-            entity: camera.nvr_token_17_0_1_1_1_s0
++            entity: camera.home_security_driveway_live
+             variables:
+               camera_name: "Driveway"
+           - type: conditional
+             conditions:
+             - condition: state
+-              entity: camera.nvr_token_17_0_1_1_1_s0
++              entity: camera.home_security_driveway_live
+               state_not:
+               - unavailable
+               - unknown
+             card:
+               type: picture-entity
+-              entity: camera.nvr_token_17_0_1_1_1_s0
++              entity: camera.home_security_driveway_live
+               name: NVR channel 1
+-              camera_view: auto
++              camera_view: live
+               show_state: false
+               show_name: false
+               tap_action:
+@@ -3515,7 +3515,7 @@
+           - type: conditional
+             conditions:
+             - condition: state
+-              entity: camera.nvr_token_17_0_1_1_1_s0
++              entity: camera.home_security_driveway_live
+               state:
+               - unavailable
+               - unknown
+@@ -3527,7 +3527,7 @@
+               grid_options:
+                 columns: 12
+                 rows: auto
+-              entity: camera.nvr_token_17_0_1_1_1_s0
++              entity: camera.home_security_driveway_live
+               tap_action:
+                 action: navigate
+                 navigation_path: /master-home/admin
+@@ -3545,21 +3545,21 @@
+           cards:
+           - type: custom:button-card
+             template: hs_design_camera
+-            entity: camera.nvr_token_17_0_2_1_2_s0
++            entity: camera.nvr_token_17_0_2_1_2_s1
+             variables:
+               camera_name: "Side Walkway"
+           - type: conditional
+             conditions:
+             - condition: state
+-              entity: camera.nvr_token_17_0_2_1_2_s0
++              entity: camera.nvr_token_17_0_2_1_2_s1
+               state_not:
+               - unavailable
+               - unknown
+             card:
+               type: picture-entity
+-              entity: camera.nvr_token_17_0_2_1_2_s0
++              entity: camera.nvr_token_17_0_2_1_2_s1
+               name: NVR channel 2
+-              camera_view: auto
++              camera_view: live
+               show_state: false
+               show_name: false
+               tap_action:
+@@ -3573,7 +3573,7 @@
+           - type: conditional
+             conditions:
+             - condition: state
+-              entity: camera.nvr_token_17_0_2_1_2_s0
++              entity: camera.nvr_token_17_0_2_1_2_s1
+               state:
+               - unavailable
+               - unknown
+@@ -3585,7 +3585,7 @@
+               grid_options:
+                 columns: 12
+                 rows: auto
+-              entity: camera.nvr_token_17_0_2_1_2_s0
++              entity: camera.nvr_token_17_0_2_1_2_s1
+               tap_action:
+                 action: navigate
+                 navigation_path: /master-home/admin

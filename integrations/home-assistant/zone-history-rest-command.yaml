@@ -1,0 +1,9 @@
+# Merge only after approved API deployment. Reuse the existing server-side secret.
+# Fixed trusted origin/path; callers supply only validated query data, never a URL.
+rest_command:
+  home_security_zone_history:
+    url: !secret home_security_zone_history_url_template
+    method: GET
+    timeout: 10
+    headers:
+      Authorization: !secret home_security_history_authorization
