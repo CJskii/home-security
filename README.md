@@ -4,15 +4,17 @@ A self-hosted event pipeline, live-view dashboard and local vision-LLM enrichmen
 
 ## Why I built it
 
-My NVR reliably records video around the clock and reports detections. Finding a particular event, reviewing what happened and getting a useful phone alert were harder than they needed to be. I also wanted camera images to stay on my own hardware.
+I started out with Frigate. It worked well enough during the day, but at night I kept finding things in the camera footage that never appeared in the event list. I was playing with different settings to make it work and tried different models in Frigate, but eventually reached the point where it seemed better to treat my Uniview NVR as the source of truth for events instead of relying on separate software for reporting objects. The recorder was already catching the activity and storing the video anyway.
 
-I built Home Security around the NVR: PostgreSQL indexes canonical detections, a React dashboard makes them searchable, and a local Ollama vision model adds descriptions. A private go2rtc gateway provides low-latency H.264 live views with the NVR's detection polygons overlaid. Home Assistant delivers an immediate source-based phone alert, then quietly updates that same notification when useful AI analysis arrives.
+I decided to build around its API so the NVR handles the detection and recording, while Home Security handles the search, dashboard, and notifications. I also wanted image analysis to run locally without uploading camera snapshots to a cloud model.
+
+I added a PostgreSQL event index, a React dashboard, local Ollama descriptions and live H.264 viewing through go2rtc. Home Assistant delivers an initial source-based phone alert, then quietly updates the same notification when useful accepted AI text is ready.
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    NVR[Uniview NVR]
+    Cameras[IP cameras] -->|Video feeds| NVR[Uniview NVR]
     subgraph capture[Ingestion and persistence]
       Receiver[Fastify receiver]
       DB[(PostgreSQL / Prisma)]
@@ -155,3 +157,5 @@ The suites cover synthetic NVR payloads, canonical identity, geometric attributi
 ## Hardware and integration scope
 
 I run local vision on an AMD Radeon 780M through Ollama's Vulkan backend. The current capture adapter expects Uniview Alarm/Structure payloads and the matching original-image endpoints. Live viewing uses H.264 substreams; mobile alerts use the supplied Node-RED/Home Assistant contract. Adapting a different NVR means implementing its source identities, media references and payload mapping.
+
+The local vision model is slow and can struggle with movement direction and detail at night. AI has one inference slot, so bursts can leave events without descriptions. Notification rules have their own cooldowns to limit repeated alerts; the event history still includes every canonical NVR detection.
