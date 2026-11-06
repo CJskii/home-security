@@ -24,7 +24,7 @@ async function fixture() {
   await new Promise<void>(resolve => api.listen(0, "127.0.0.1", resolve));
   cleanup.push(() => new Promise<void>(resolve => { api.closeAllConnections(); api.close(() => resolve()); }));
   const { server, stopLive } = createDashboardServer({ origin: "https://security.test", assets: root, enabled: false,
-    authorization: "", apiOrigin: `http://127.0.0.1:${(api.address() as AddressInfo).port}` });
+    authorization: "", notificationMediaHost: "media.security.test", apiOrigin: `http://127.0.0.1:${(api.address() as AddressInfo).port}` });
   await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
   cleanup.push(() => new Promise<void>(resolve => { stopLive(); server.closeAllConnections(); server.close(() => resolve()); }));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -67,12 +67,35 @@ it("rejects absolute-form and protocol-relative proxy targets", async () => {
   }
   expect(calls).toHaveLength(0);
 });
+it("isolates the public media host from sessions, event APIs, assets and live streams", async () => {
+  const { base, calls } = await fixture();
+  const headers = { host: "MEDIA.SECURITY.TEST:443" };
+  const mediaRequest = (path: string, method = "GET") => new Promise<{status:number;headers:import('node:http').IncomingHttpHeaders}>((resolve, reject) => {
+    const req = request(base + path, { method, headers }, res => { res.resume(); resolve({status:res.statusCode!,headers:res.headers}); });
+    req.on("error", reject); req.end();
+  });
+  for (const path of ["/", "/explore?event=fixture", "/api/session", "/api/events", "/api/live/ws", "/assets/app-abc123.js", "/health", "/api/notification-media/not-an-event/image?token=fixture"]) {
+    expect((await mediaRequest(path)).status, path).toBe(404);
+  }
+  const path = "/api/notification-media/10000000-0000-4000-8000-000000000001/10000000-0000-4000-8000-000000000002";
+  expect((await mediaRequest(path)).status).toBe(401);
+  expect((await mediaRequest(path + "?token=fixture", "POST")).status).toBe(405);
+  expect(calls).toHaveLength(0);
+  const response = await mediaRequest(path + "?token=fixture");
+  expect(response.status).toBe(200);
+  expect(response.headers["cache-control"]).toBe("no-store");
+  expect(response.headers["referrer-policy"]).toBe("no-referrer");
+  expect(calls.map(call => call.url)).toEqual([path + "?token=fixture"]);
+});
 it("validates server-only origins and never accepts URL credentials or insecure browser origins", () => {
   const env = { DASHBOARD_ORIGIN: "https://security.test", DASHBOARD_API_ORIGIN: "http://api:3000" };
   expect(productionOptions(env).enabled).toBe(false);
   for (const changes of [{ DASHBOARD_ORIGIN: "http://security.test" },
     { DASHBOARD_API_ORIGIN: "http://user:secret@api:3000" },
     { DASHBOARD_API_ORIGIN: "http://api:3000/private" },
+    { NOTIFICATION_PUBLIC_MEDIA_HOST: "security.test" },
+    { NOTIFICATION_PUBLIC_MEDIA_HOST: "media.test/path" },
+    { NOTIFICATION_PUBLIC_MEDIA_HOST: "media.test:443" },
     { LIVE_GATEWAY_ENABLED: "true" },
     { LIVE_GATEWAY_ENABLED: "true", SECURITY_GATEWAY_ORIGIN: "http://gateway:1984", SECURITY_GATEWAY_USER: "user", SECURITY_GATEWAY_PASSWORD: "bad\r\nsecret" }])
     expect(() => productionOptions({ ...env, ...changes })).toThrow();
