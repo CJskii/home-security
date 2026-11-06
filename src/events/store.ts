@@ -1,4 +1,4 @@
-import { annotateLocations, locationCatalog, locationsCte } from './locations.js';
+import { annotateLocations, locationCatalog, locationsCte, currentLocationCatalog } from './locations.js';
 import { Prisma, type PrismaClient } from '../generated/prisma/client.js';
 import type { EventQueries } from '../database.js';
 import type { HistoryQuery } from './queries.js';
@@ -112,14 +112,14 @@ export function historyFilters(q: HistoryQuery): Prisma.Sql[] {
 export function createEventQueries(prisma: PrismaClient): EventQueries {
   return {
     async history(query) {
-      const catalog=await locationCatalog(prisma);
-      const prefix=query.locationZoneId || query.interestedZonesOnly || query.zoneInterest || query.locationStatus ? locationsCte(catalog):Prisma.empty;
+      const catalog=await locationCatalog(prisma),now=new Date();
+      const prefix=query.locationZoneId || query.interestedZonesOnly || query.zoneInterest || query.locationStatus ? locationsCte(currentLocationCatalog(catalog,now)):Prisma.empty;
       const filters = historyFilters(query);
       const summaries = await prisma.$queryRaw<Summary[]>(Prisma.sql`${prefix} ${summarySql} ${filters.length ? Prisma.sql`WHERE ${Prisma.join(filters, ' AND ')}` : Prisma.empty}
         ORDER BY ${eventTime} ${query.sort==='oldest'?Prisma.sql`ASC`:Prisma.sql`DESC`},e.id ${query.sort==='oldest'?Prisma.sql`ASC`:Prisma.sql`DESC`} LIMIT ${query.limit + 1}`);
       const rows = await prisma.securityEvent.findMany({ where: { id: { in: summaries.map((r) => r.id) } }, include: eventInclude });
       const found = new Map(rows.map((r) => [r.id,r]));
-      return summaries.flatMap((s) => { const row = found.get(s.id); return row ? [{ ...annotateLocations(row,catalog), ...s }] : []; });
+      return summaries.flatMap((s) => { const row = found.get(s.id); return row ? [{ ...annotateLocations(row,catalog,now), ...s }] : []; });
     },
     async get(id) {
       const [summary] = await prisma.$queryRaw<Summary[]>(Prisma.sql`${summarySql} WHERE e.id=${id}::uuid`);

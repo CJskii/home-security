@@ -183,6 +183,20 @@ Notification taps use the private dashboard event URL. With a network route to t
 dashboard, signed-out users see the password screen and retain the event query.
 Image links expire and are not event-detail navigation links.
 
+Set the Node-RED tab's optional `HOME_SECURITY_EVENT_VIEW` to an existing HA view
+path (for example `/lovelace/security`) to open notifications in Companion. Deploy
+the matching `prepare-ha-event-dialogs.mjs` button-card helper first. It consumes
+the validated `home_security_event` UUID, opens the existing server-backed event
+dialog and provides a separate private Home Security detail link. Initial and AI
+updates keep the same image, tag and event identity.
+
+Event zone filters and HA feeds use the same bounded stored-geometry carry-forward
+as immediate notifications. Recently confirmed latest polygons can cover new
+events between scheduled observations, with the assumed-unchanged basis explicit.
+Configuration older than twenty minutes fails closed; historical observation gaps
+and superseded versions are not extended. This projection never changes source
+geometry, event records, AI policy or notification eligibility.
+
 Delivery, producer activation and the worker are separate switches. New installations
 start disabled. Set an explicit live start cutoff before enabling production delivery,
 so historical events cannot be replayed. AI enrichment has its own switch/cutoff and
