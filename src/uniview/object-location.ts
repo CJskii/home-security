@@ -16,7 +16,7 @@ export interface LocationObject {
 export type LocationStatus='MATCHED'|'AMBIGUOUS'|'UNMATCHED'|'UNKNOWN';
 export interface ObjectLocation {
   status:LocationStatus;reason:string;algorithm:typeof LOCATION_ALGORITHM|'person_ground_point_v1';
-  temporalBasis:'observed_configuration_bracket'; evaluatedVersionIds:string[];
+  temporalBasis:'observed_configuration_bracket'|'latest_confirmed_geometry_assumed_unchanged'; evaluatedVersionIds:string[];
   matches:{zoneId:string;versionId:string;revision?:number;slot:number;name:string;interested:boolean}[];
 }
 export const rectangleSchema=z.object({xMin:z.number().min(0).max(10000),yMin:z.number().min(0).max(10000),xMax:z.number().min(0).max(10000),yMax:z.number().min(0).max(10000)})

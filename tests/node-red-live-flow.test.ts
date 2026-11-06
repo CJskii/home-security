@@ -38,7 +38,7 @@ it('prepares only presentation functions without resetting live gates or phone r
  const node=before.nodes.find(n=>n.id==='ingress')!;node.func=String(node.func).replace('🚨 ${where}','🚨 OLD ${where}');
  const updated=prepareNotificationPresentationRepair(before);expect(updated.nodes.find(n=>n.id==='ingress')!.func).not.toContain('🚨 OLD');
  expect(updated.env).toEqual(before.env);expect(updated.nodes.filter(n=>n.type!=='function')).toEqual(before.nodes.filter(n=>n.type!=='function'));
- for(const next of updated.nodes.filter(n=>n.type==='function')){const old=String(before.nodes.find(n=>n.id===next.id)!.func),value=String(next.func);const strip=(s:string)=>s.replace(/ {4}function notification\(body, isTest\) \{[\s\S]*?(?= {4}function folder\(\) \{)/,'');expect(strip(value)).toBe(strip(old));}
+ for(const next of updated.nodes.filter(n=>n.type==='function')){const old=String(before.nodes.find(n=>n.id===next.id)!.func),value=String(next.func);const strip=(s:string)=>s.replace(/ {4}function notification\(body, isTest(?:, haView)?\) \{[\s\S]*?(?= {4}function folder\(\) \{)/,'');expect(strip(value)).toBe(strip(old));}
  expect(prepareNotificationPresentationRepair(updated)).toEqual(updated);
 });
 

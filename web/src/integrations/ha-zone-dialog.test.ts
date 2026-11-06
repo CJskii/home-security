@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-import {openZoneHistory,activityText,activityCard,activityTime,relativeZoneTime,eventDashboardUrl,type HistoryHass} from './ha-zone-dialog';
+import {openZoneHistory,bindNotificationEvent,activityText,activityCard,activityTime,relativeZoneTime,eventDashboardUrl,type HistoryHass} from './ha-zone-dialog';
 const zone='22222222-2222-4222-8222-222222222222';
 beforeEach(()=>{
  Object.defineProperty(HTMLDialogElement.prototype,'showModal',{configurable:true,value:function(this:HTMLDialogElement){this.open=true;}});
@@ -31,11 +31,32 @@ it('keeps links functional when original media references are missing',async()=>
 
 it('opens an individual event in HA, with canonical full frame and outcomes, without loading history or navigating',async()=>{
  const {openEventDetails}=await import('./ha-zone-dialog');const {hass,page,call}=fixture();call.mockResolvedValue({service_response:{status:200,content:page.items[0]!}} as unknown as Awaited<ReturnType<typeof call>>);
- await openEventDetails(hass,'10000000-0000-4000-8000-000000000000');expect(call).toHaveBeenCalledWith('POST','services/rest_command/home_security_event?return_response',{event_id:'10000000-0000-4000-8000-000000000000'});const d=document.querySelector<HTMLDialogElement>('.hs-zone-event')!;expect(d.open).toBe(true);expect(d.querySelector('img')!.src).toBe(page.items[0]!.fullFrame);expect(d.textContent).toContain('Webhook accepted');expect(d.querySelectorAll('a')).toHaveLength(0);d.close();expect(document.querySelector('.hs-zone-event')).toBeNull();
+ await openEventDetails(hass,'10000000-0000-4000-8000-000000000000');expect(call).toHaveBeenCalledWith('POST','services/rest_command/home_security_event?return_response',{event_id:'10000000-0000-4000-8000-000000000000'});const d=document.querySelector<HTMLDialogElement>('.hs-zone-event')!;expect(d.open).toBe(true);expect(d.querySelector('img')!.src).toBe(page.items[0]!.fullFrame);expect(d.textContent).toContain('Webhook accepted');expect(d.querySelector('a')!.textContent).toBe('Open in Home Security');expect(d.querySelector('a')!.href).toContain('event='+page.items[0]!.eventId);d.close();expect(document.querySelector('.hs-zone-event')).toBeNull();
+});
+it('consumes notification navigation once and handles another tap while HA is already open',async()=>{
+ const {hass,page,call}=fixture();const id=page.items[0]!.eventId;call.mockResolvedValue({service_response:{status:200,content:page.items[0]!}} as unknown as Awaited<ReturnType<typeof call>>);
+ window.history.replaceState(null,'','/master-home/security?home_security_event='+id+'&keep=1');
+ const dispose=bindNotificationEvent(hass);
+ try{
+  await vi.waitFor(()=>expect(document.querySelector('.hs-zone-event')?.textContent).toContain('Webhook accepted'));
+  expect(window.location.search).toBe('?keep=1');bindNotificationEvent(hass);expect(call).toHaveBeenCalledTimes(1);
+  document.querySelector<HTMLDialogElement>('.hs-zone-event')!.close();window.history.pushState(null,'','?home_security_event='+id);window.dispatchEvent(new Event('location-changed'));
+  await vi.waitFor(()=>expect(call).toHaveBeenCalledTimes(2));
+  document.querySelector<HTMLDialogElement>('.hs-zone-event')!.close();window.history.pushState(null,'','?home_security_event=not-a-uuid');window.dispatchEvent(new Event('popstate'));expect(call).toHaveBeenCalledTimes(2);
+ }finally{dispose();window.history.replaceState(null,'','/');}
 });
 it('does not show the wrong event or a late reply after an individual dialog closes',async()=>{
  const {openEventDetails}=await import('./ha-zone-dialog');const {hass,page,call}=fixture();call.mockResolvedValue({service_response:{status:200,content:{...page.items[0],eventId:'wrong'}}} as unknown as Awaited<ReturnType<typeof call>>);await openEventDetails(hass,'10000000-0000-4000-8000-000000000000');expect(document.querySelector('.hs-zone-event img')).toBeNull();document.querySelector<HTMLDialogElement>('.hs-zone-event')!.close();
  let finish!:(v:unknown)=>void;hass.callApi=vi.fn(()=>new Promise(resolve=>{finish=resolve})) as HistoryHass['callApi'];const pending=openEventDetails(hass,'10000000-0000-4000-8000-000000000000');document.querySelector<HTMLDialogElement>('.hs-zone-event')!.close();finish({service_response:{status:200,content:page.items[0]}});await pending;expect(document.querySelector('.hs-zone-event')).toBeNull();
+});
+it('replaces an already open event when another notification selects a different canonical event',async()=>{
+ const {openEventDetails}=await import('./ha-zone-dialog');const {hass,page,call}=fixture(2);
+ call.mockResolvedValueOnce({service_response:{status:200,content:page.items[0]!}} as unknown as Awaited<ReturnType<typeof call>>);
+ await openEventDetails(hass,page.items[0]!.eventId);
+ call.mockResolvedValueOnce({service_response:{status:200,content:page.items[1]!}} as unknown as Awaited<ReturnType<typeof call>>);
+ await openEventDetails(hass,page.items[1]!.eventId);
+ expect(document.querySelectorAll('.hs-zone-event')).toHaveLength(1);
+ expect(document.querySelector<HTMLDialogElement>('.hs-zone-event')!.dataset.eventId).toBe(page.items[1]!.eventId);
 });
 
 it('uses one descriptive headline, hides delivery diagnostics in activity rows and avoids visible image alt text',async()=>{

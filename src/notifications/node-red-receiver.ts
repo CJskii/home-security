@@ -42,7 +42,7 @@ export function createReceiverToolkit(fs: typeof Fs, path: typeof Path, crypto: 
     const values = [state(primary), state(secondary)];
     return values.includes('unknown') ? 'phones_unknown' : values.includes('home') ? 'local_held' : 'phones_away';
   }
-  function notification(body: WebhookPayload, isTest: boolean) {
+  function notification(body: WebhookPayload, isTest: boolean, haView?: string) {
     const categories = [...new Set(body.objects.map(o => o.category === 'PERSON' ? 'Person' : 'Vehicle'))].join(' and ');
     const zones = [...new Set(body.objects.flatMap(o => o.zoneNames?.map(z => z.name) ?? []))].join(', ') || 'Zone not established';
     const time = body.timestamps.occurredAt ?? body.timestamps.receivedAt;
@@ -53,7 +53,9 @@ export function createReceiverToolkit(fs: typeof Fs, path: typeof Path, crypto: 
     const title = `${isTest ? 'TEST · ' : ''}🚨 ${where}`;
     const message = `${body.action==='update'?body.ai.summary?.replace(/^(?:A|The) person\b/,'Someone'):`${categories==='Person'?'Someone':categories} detected`}\n${readableTime}${isTest?'\nControlled TEST — not a new detection.':''}`;
     const image = body.images.find(i=>i.delivery)?.delivery?.url;
-    return { title:rich?title:'Home Security · TEST', message:rich?message:`${categories} detected — TEST only\nCamera: ${body.camera.name}\nZone: ${zones}\n${body.timestamps.occurredAt?'Time':'Received'}: ${readableTime}\nNo real detection. Presence bypassed.`, data: { ...(image?{image}:{}), alert_once:true,notification_icon:'mdi:shield-alert', channel:'Home Security',importance:'high',priority:'high',ttl:0,clickAction:body.dashboardUrl,tag: 'home-security:' + body.notificationId, group: 'home-security', notification_id: body.notificationId, event_id: body.eventId ?? '', sample_event_id:body.sampleEventId??'', event_timestamp: time, test: isTest ? 'true' : 'false', camera: String(body.camera.channel) } };
+    const target=isTest?body.sampleEventId:body.eventId;
+    const clickAction=typeof haView==='string'&&/^\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(haView)&&target&&uuid.test(target)?haView+'?home_security_event='+target:body.dashboardUrl;
+    return { title:rich?title:'Home Security · TEST', message:rich?message:`${categories} detected — TEST only\nCamera: ${body.camera.name}\nZone: ${zones}\n${body.timestamps.occurredAt?'Time':'Received'}: ${readableTime}\nNo real detection. Presence bypassed.`, data: { ...(image?{image}:{}), alert_once:true,notification_icon:'mdi:shield-alert', channel:'Home Security',importance:'high',priority:'high',ttl:0,clickAction,tag: 'home-security:' + body.notificationId, group: 'home-security', notification_id: body.notificationId, event_id: body.eventId ?? '', sample_event_id:body.sampleEventId??'', event_timestamp: time, test: isTest ? 'true' : 'false', camera: String(body.camera.channel) } };
   }
   function folder() {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });

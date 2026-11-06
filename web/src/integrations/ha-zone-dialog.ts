@@ -61,6 +61,26 @@ export function eventDashboardUrl(hass:HistoryHass,eventId:string):string|null{
   }catch{return null;}
 }
 
+// The existing button-card helper is evaluated on dashboard updates. Keep one
+// listener across renders so notification taps also work when HA is already open.
+export function bindNotificationEvent(hass:HistoryHass):()=>void{
+  type Navigation={hass:HistoryHass;open:()=>void;dispose:()=>void};
+  const host=window as Window & {__homeSecurityNotificationNavigation?:Navigation};
+  let state=host.__homeSecurityNotificationNavigation;
+  if(!state){
+    const open=()=>{
+      const url=new URL(window.location.href),id=url.searchParams.get('home_security_event');
+      if(!id||!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id))return;
+      url.searchParams.delete('home_security_event');window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);
+      queueMicrotask(()=>{if(host.__homeSecurityNotificationNavigation)void openEventDetails(host.__homeSecurityNotificationNavigation.hass,id);});
+    };
+    const dispose=()=>{window.removeEventListener('location-changed',open);window.removeEventListener('popstate',open);delete host.__homeSecurityNotificationNavigation;};
+    state={hass,open,dispose};host.__homeSecurityNotificationNavigation=state;
+    window.addEventListener('location-changed',open);window.addEventListener('popstate',open);
+  }
+  state.hass=hass;state.open();return state.dispose;
+}
+
 function eventDetails(item:HistoryItem){
   const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Delivery & event details';details.append(summary);
   for(const value of [item.notification,item.time,'Event '+item.eventId]){const p=document.createElement('p');p.textContent=value;details.append(p);}return details;
@@ -123,9 +143,11 @@ export async function openZoneHistory(hass:HistoryHass,channel:number,slot:numbe
 
 // Individual activity/ledger rows use the same native in-HA image presentation.
 export async function openEventDetails(hass:HistoryHass,eventId:string):Promise<void>{
+  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(eventId))return;
   const existing=document.querySelector<HTMLDialogElement>('dialog.hs-zone-event');
-  if(existing?.open){existing.focus();return;}
+  if(existing?.open){if(existing.dataset.eventId===eventId){existing.focus();return;}existing.close();}
   const view=document.createElement('dialog');view.className='hs-zone-frame hs-zone-event';view.setAttribute('aria-label','Detection details');
+  view.dataset.eventId=eventId;
   const style=document.createElement('style');style.textContent=dialogCss;view.append(style);
   const header=document.createElement('header'),title=document.createElement('h2'),close=document.createElement('button');title.textContent='Detection';close.textContent='Close';close.setAttribute('aria-label','Close event details');close.onclick=()=>view.close();header.append(title,close);view.append(header);
   const body=document.createElement('div');view.append(body);let disposed=false;
@@ -136,6 +158,8 @@ export async function openEventDetails(hass:HistoryHass,eventId:string):Promise<
     const item=r.service_response.content;const display=activityCard(item.category,item.zone,item.description);title.textContent=display.title;body.replaceChildren(text(activityTime(item.timestamp??item.time)));if(display.description)body.append(text(display.description));
     if(item.fullFrame){const img=document.createElement('img');img.alt='Original NVR full-frame image';let retries=0;img.onerror=()=>{if(retries++<2)setTimeout(()=>{if(!disposed&&img.isConnected)img.src=item.fullFrame!;},600);else img.replaceWith(text('Original full frame unavailable. The detection record remains available.'));};img.src=item.fullFrame;body.append(img);}else body.append(text('No original full-frame reference is available.'));
     body.append(eventDetails(item));
+    const url=eventDashboardUrl(hass,eventId);
+    if(url){const link=document.createElement('a');link.textContent='Open in Home Security';link.href=url;link.target='_blank';link.rel='noopener noreferrer';body.append(link);}
   }catch{if(!disposed){body.replaceChildren(text('Detection unavailable. Please retry.'));const retry=document.createElement('button');retry.textContent='Retry';retry.onclick=()=>{void load();};body.append(retry);}}};
   view.addEventListener('close',()=>{disposed=true;for(const image of view.querySelectorAll('img'))image.removeAttribute('src');view.remove();},{once:true});
   document.body.append(view);view.showModal();await load();

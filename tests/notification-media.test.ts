@@ -73,3 +73,14 @@ it('keeps initial and enriched phone text concise, with the same quiet tag and l
  expect(kit.notification(body,true).message).toContain('Someone detected\n13:00');
  expect(kit.notification(body,true).message).not.toContain('(My Walkway)');
 });
+
+it('opens an exact event inside the configured HA view without changing image, tag or update identity',()=>{
+ const kit=createReceiverToolkit(fs,path,crypto,'unused',cfg.origin),body=samplePayload(c,a,at,'https://dashboard.example');body.sampleEventId=a;
+ body.images=[{id:b,path:`/api/events/${a}/images/${b}`,authentication:'dashboard_session_or_service_bearer',delivery:mediaLink(cfg,a,b,c,at)}];
+ const original=kit.notification(body,true),inside=kit.notification(body,true,'/master-home/security');
+ expect(inside.data.clickAction).toBe('/master-home/security?home_security_event='+a);
+ expect(inside.data.image).toBe(original.data.image);expect(inside.data.tag).toBe(original.data.tag);
+ const update=kit.notification({...body,action:'update',ai:{status:'completed',revision:1,summary:'A person is bending.'}},true,'/master-home/security');
+ expect(update.data.clickAction).toBe(inside.data.clickAction);expect(update.data.alert_once).toBe(true);
+ for(const invalid of ['//untrusted.example/security','javascript:alert(1)','/master-home/security?next=unsafe'])expect(kit.notification(body,true,invalid).data.clickAction).toBe(body.dashboardUrl);
+});

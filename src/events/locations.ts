@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from '../generated/prisma/client.js';
 import { usablePolygon, type Vertex } from '../uniview/zone-geometry.js';
 import { locateObject, type LocationZone } from '../uniview/object-location.js';
+import { notificationGeometry } from '../notifications/current-geometry.js';
 
 // Read-only projection: source versions, notification-local object UUIDs and image
 // anchors remain untouched. The catalog is small, not a list of event IDs.
@@ -13,11 +14,21 @@ export async function locationCatalog(prisma: Pick<PrismaClient,'univiewZoneVers
     lastObservedAt:v.lastObservedAt, nameEffectiveAt:v.nameEffectiveAt,
     name:v.zone.preference?.displayName ?? v.displayName, interested:v.zone.preference?.interested ?? false }));
 }
-export function annotateLocations<T extends { sourceInstallationId:string; nvrChannel:number; objects:unknown[] }>(row:T, catalog:LocationZone[]) {
+// Read-only carry-forward for recent queries, with the same age/change guards as
+// notification evaluation. Historical versions and their observation gaps stay intact.
+export function currentLocationCatalog(catalog:LocationZone[],now=new Date()):LocationZone[]{
+  const groups=new Map<string,LocationZone[]>();
+  for(const zone of catalog){const key=zone.sourceInstallationId+':'+zone.channel;const group=groups.get(key)??[];group.push(zone);groups.set(key,group);}
+  return [...groups.values()].flatMap(versions=>[...notificationGeometry({sourceTimestamp:now},versions,now).versions]);
+}
+export function annotateLocations<T extends { sourceInstallationId:string; nvrChannel:number; objects:unknown[] }>(row:T, catalog:LocationZone[],now=new Date()) {
   const zones=catalog.filter(z=>z.sourceInstallationId===row.sourceInstallationId && z.channel===row.nvrChannel);
   return {...row,objects:row.objects.map(object=>{
     const o=object as Parameters<typeof locateObject>[0];
-    return {...object as Record<string,unknown>,location:locateObject(o,zones,'person_ground_point')};
+    const geometry=notificationGeometry(o,zones,now);
+    const location=locateObject(o,geometry.versions,'person_ground_point');
+    if(geometry.cached)location.temporalBasis='latest_confirmed_geometry_assumed_unchanged';
+    return {...object as Record<string,unknown>,location};
   })};
 }
 // Native PostgreSQL geometry operators support concave/multi-vertex polygons.

@@ -2,12 +2,31 @@ import { expect,it,vi } from 'vitest';
 import { locateObject,compareLocationMethods,type LocationZone } from '../src/uniview/object-location.js';
 import { historySchema } from '../src/events/queries.js';
 import { historyFilters,createEventQueries } from '../src/events/store.js';
-import { locationsCte,annotateLocations } from '../src/events/locations.js';
+import { locationsCte,annotateLocations,currentLocationCatalog } from '../src/events/locations.js';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 const at=new Date('2026-10-20T12:00:00Z');
 const polygon=[{X:1000,Y:1000},{X:9000,Y:1000},{X:9000,Y:9000},{X:1000,Y:9000}];
 const zones:LocationZone[]=Array.from({length:4},(_,slot)=>({id:`00000000-0000-4000-8000-00000000000${slot}`,zoneId:`10000000-0000-4000-8000-00000000000${slot}`,revision:1,slot,channel:1,sourceInstallationId:'20000000-0000-4000-8000-000000000000',name:`Slot ${slot}`,interested:slot===0,enabled:slot===0,ruleEnabled:true,polygon:slot===0?polygon:[],observedAt:new Date(+at-10000),lastObservedAt:new Date(+at+10000),nameEffectiveAt:new Date(+at-10000)}));
 const object={coordinateStatus:'VALID',xMin:4000,xMax:6000,yMin:4000,yMax:6000,sourceTimestamp:at,fullFrameSnapshotId:'scene'};
+it('shows recent detections using bounded confirmed geometry consistently in filtering and presentation',()=>{
+ const now=new Date(+at+300000),sourceTimestamp=new Date(+at+240000);
+ const row={sourceInstallationId:zones[0]!.sourceInstallationId,nvrChannel:1,objects:[{...object,category:'PERSON',sourceTimestamp}]};
+ const result=annotateLocations(row,zones,now).objects[0]!.location;
+ expect(result).toMatchObject({status:'MATCHED',temporalBasis:'latest_confirmed_geometry_assumed_unchanged'});
+ expect(result.matches[0]!.slot).toBe(0);
+ const catalog=currentLocationCatalog(zones,now);
+ expect(locateObject({...object,sourceTimestamp},catalog).status).toBe('MATCHED');
+ expect(zones[0]!.lastObservedAt.getTime()).toBe(+at+10000);
+ expect(annotateLocations(row,zones,new Date(+at+1300000)).objects[0]!.location.status).toBe('UNKNOWN');
+});
+it('never carries old geometry over an observed change or fills historical observation gaps',()=>{
+ const next=zones.map(z=>({...z,id:'next-'+z.id,observedAt:new Date(+at+200000),nameEffectiveAt:new Date(+at+200000),lastObservedAt:new Date(+at+210000)}));
+ const now=new Date(+at+300000),all=[...zones,...next];
+ const row={sourceInstallationId:zones[0]!.sourceInstallationId,nvrChannel:1,objects:[{...object,sourceTimestamp:new Date(+at+100000)}]};
+ expect(annotateLocations(row,all,now).objects[0]!.location.status).toBe('UNKNOWN');
+ expect(locateObject(row.objects[0]!,currentLocationCatalog(all,now)).status).toBe('UNKNOWN');
+ expect(currentLocationCatalog(all,now).find(z=>z.id===zones[0]!.id)!.lastObservedAt).toEqual(zones[0]!.lastObservedAt);
+});
 it('pins multiple overlapping source versions without deduplicating source identities',()=>{
  const overlapping=zones.map(z=>z.slot===1?{...z,enabled:true,polygon}:z);
  const result=locateObject(object,overlapping);expect(result.status).toBe('MATCHED');expect(result.matches.map(z=>z.slot)).toEqual([0,1]);expect(result.matches[0]?.revision).toBe(1);expect(result.evaluatedVersionIds).toHaveLength(4);
