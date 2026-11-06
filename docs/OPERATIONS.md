@@ -161,6 +161,28 @@ the last successful observation. Inspect sync status before changing zone data.
 
 ## Notifications and media
 
+### Mobile notification images away from home
+
+Companion downloads an attachment from the image URL separately from the push.
+For mobile-data delivery, set `NOTIFICATION_MEDIA_ORIGIN` to a reachable HTTPS
+origin and `NOTIFICATION_PUBLIC_MEDIA_HOST` to its hostname. Reuse an existing
+HTTPS tunnel and its TLS configuration; `NOTIFICATION_MEDIA_ENTRYPOINT` selects
+the trusted Traefik entrypoint. The separate media router exposes only GETs under
+`/api/notification-media/`. The edge rejects other routes on that host and Fastify
+verifies the event/image signature and 24-hour expiry before fetching any media.
+The dashboard, session routes, event APIs and live streams remain private.
+
+Update the Node-RED tab's `HOME_SECURITY_MEDIA_ORIGIN` pin before switching the
+API/worker media origin. During a cutover it accepts at most two comma-separated,
+exact origins (old and new), preserving already-created initial/update payloads.
+Keep the signing key, activation cutoffs and delivery ledger unchanged. Do not
+rewrite historical intents. Rollback restores the previous media origin and edge
+image/configuration; no database migration or event replay is needed.
+
+Notification taps use the private dashboard event URL. With a network route to the
+dashboard, signed-out users see the password screen and retain the event query.
+Image links expire and are not event-detail navigation links.
+
 Delivery, producer activation and the worker are separate switches. New installations
 start disabled. Set an explicit live start cutoff before enabling production delivery,
 so historical events cannot be replayed. AI enrichment has its own switch/cutoff and

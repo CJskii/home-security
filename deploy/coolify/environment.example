@@ -44,6 +44,10 @@ NOTIFICATION_APPROVED_DESTINATIONS=REPLACE_EXISTING_PINNED_DESTINATION_JSON
 NOTIFICATION_MEDIA_KEY=REPLACE_EXISTING_MEDIA_KEY
 NOTIFICATION_MEDIA_ORIGIN=https://security.example.com
 NOTIFICATION_DASHBOARD_ORIGIN=https://security.example.com
+# Optional public image-only hostname on the existing HTTPS tunnel. The dashboard
+# keeps its private origin. Set MEDIA_ORIGIN above to https://this-host when ready.
+NOTIFICATION_PUBLIC_MEDIA_HOST=
+NOTIFICATION_MEDIA_ENTRYPOINT=web-tunnel-secure
 # Optional values: copy the snapshot exactly if it overrides these defaults.
 LOG_LEVEL=info
 METRICS_ENABLED=false

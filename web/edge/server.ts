@@ -20,11 +20,15 @@ export function productionOptions(env: NodeJS.ProcessEnv) {
     SECURITY_GATEWAY_USER: z.string().min(1).refine(v => !/[:\r\n]/.test(v)).optional(),
     SECURITY_GATEWAY_PASSWORD: z.string().min(1).refine(v => !/[\r\n]/.test(v)).optional(),
     PORT: z.coerce.number().int().min(1).max(65535).default(8080),
+    NOTIFICATION_PUBLIC_MEDIA_HOST: z.preprocess(v => v === "" ? undefined : v,
+      z.string().max(253).regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/).optional()),
   }).parse(env);
+  if (config.NOTIFICATION_PUBLIC_MEDIA_HOST === new URL(config.DASHBOARD_ORIGIN).hostname)
+    throw new Error("Notification media requires a separate hostname");
   const enabled = config.LIVE_GATEWAY_ENABLED === "true";
   if (enabled && (!config.SECURITY_GATEWAY_ORIGIN || !config.SECURITY_GATEWAY_USER || !config.SECURITY_GATEWAY_PASSWORD))
     throw new Error("Server-only gateway configuration required");
-  return { port: config.PORT, origin: config.DASHBOARD_ORIGIN, apiOrigin: config.DASHBOARD_API_ORIGIN,
+  return { port: config.PORT, origin: config.DASHBOARD_ORIGIN, apiOrigin: config.DASHBOARD_API_ORIGIN, notificationMediaHost: config.NOTIFICATION_PUBLIC_MEDIA_HOST,
     enabled, gatewayOrigin: config.SECURITY_GATEWAY_ORIGIN?.replace(/^http:/, "ws:"),
     authorization: enabled ? "Basic " + Buffer.from(`${config.SECURITY_GATEWAY_USER}:${config.SECURITY_GATEWAY_PASSWORD}`).toString("base64") : "" };
 }
@@ -37,7 +41,7 @@ function proxyHeaders(input: IncomingHttpHeaders): IncomingHttpHeaders {
     delete headers[name];
   return headers;
 }
-export function createDashboardServer(options: LiveProxyOptions & { apiOrigin: string; assets: string }) {
+export function createDashboardServer(options: LiveProxyOptions & { apiOrigin: string; assets: string; notificationMediaHost?: string | undefined }) {
   const root = resolve(options.assets);
   const server = createServer((req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -47,6 +51,15 @@ export function createDashboardServer(options: LiveProxyOptions & { apiOrigin: s
     let pathname: string;
     try { pathname = decodeURIComponent(new URL(req.url ?? "/", options.origin).pathname); }
     catch { fail(400); return; }
+    const publicMedia = Boolean(options.notificationMediaHost && req.headers.host?.split(":")[0]?.toLowerCase() === options.notificationMediaHost);
+    if (publicMedia) {
+      res.setHeader("Referrer-Policy", "no-referrer");
+      res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+      const uuid = "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}";
+      if (!new RegExp(`^/api/notification-media/${uuid}/${uuid}$`, "i").test(pathname)) { fail(404); return; }
+      if (req.method !== "GET") { fail(405); return; }
+      if (!new URL(req.url!, options.origin).searchParams.get("token")) { fail(401); return; }
+    }
     if (pathname.includes("\\") || pathname.includes("\0") || pathname.split("/").some(p => p.startsWith("."))) { fail(404); return; }
     if (pathname === "/health") { res.writeHead(200, { "Cache-Control": "no-store" }).end("ok"); return; }
     if (pathname.startsWith("/api/")) {

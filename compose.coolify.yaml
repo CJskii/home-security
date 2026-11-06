@@ -152,6 +152,7 @@ services:
       PORT: '8080'
       DASHBOARD_ORIGIN: https://${DASHBOARD_HOST:?Choose the LAN domain}
       DASHBOARD_API_ORIGIN: http://api:3000
+      NOTIFICATION_PUBLIC_MEDIA_HOST: ${NOTIFICATION_PUBLIC_MEDIA_HOST:-}
       LIVE_GATEWAY_ENABLED: 'true'
       SECURITY_GATEWAY_ORIGIN: http://gateway:1984
       SECURITY_GATEWAY_USER: ${SECURITY_GATEWAY_USER:?Existing server-only gateway user}
@@ -170,6 +171,14 @@ services:
       - 'traefik.http.routers.home-security-local-secure.middlewares=home-security-lan'
       - 'traefik.http.middlewares.home-security-lan.ipallowlist.sourcerange=${DASHBOARD_ALLOWED_CIDRS:?Set the trusted client CIDRs}'
       - 'traefik.http.services.home-security-dashboard.loadbalancer.server.port=8080'
+      # Existing trusted HTTPS tunnel; only signed image paths are public.
+      - 'traefik.http.routers.home-security-media.entrypoints=${NOTIFICATION_MEDIA_ENTRYPOINT:-web-tunnel-secure}'
+      - 'traefik.http.routers.home-security-media.rule=Host(`${NOTIFICATION_PUBLIC_MEDIA_HOST:-notification-media.invalid}`) && PathPrefix(`/api/notification-media/`) && Method(`GET`)'
+      - 'traefik.http.routers.home-security-media.tls=true'
+      - 'traefik.http.routers.home-security-media.service=home-security-dashboard'
+      - 'traefik.http.routers.home-security-media.middlewares=home-security-media-limit'
+      - 'traefik.http.middlewares.home-security-media-limit.ratelimit.average=8'
+      - 'traefik.http.middlewares.home-security-media-limit.ratelimit.burst=16'
 networks:
   app: {}
   coolify: {external: true, name: "${COOLIFY_NETWORK:-coolify}"}
