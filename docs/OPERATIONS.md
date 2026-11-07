@@ -124,6 +124,19 @@ local work-loop heartbeat, with a 180-second deadline. The gateway has an authen
 local stream-list probe. Verify each container's health, restart policy and single
 ownership after release.
 
+### Home Assistant Generic Camera recovery
+
+HA Core 2026.10.4 can cache its built-in go2rtc protocol list before FFmpeg loads.
+Generic cameras then report `Stream source is not supported by go2rtc`, while
+ONVIF cameras can keep playing. The [upstream report](https://github.com/home-assistant/core/issues/181733)
+describes this startup race and the protocol list remaining stale.
+
+Reload the **go2rtc integration entry in Home Assistant** to refresh that list,
+then verify both cameras across fresh desktop/mobile dashboard loads. This does
+not require restarting HA Core, changing NVR encoding or restarting Home Security's
+separate live gateway. The error may recur after an HA startup/upgrade until the
+upstream fix is available. Avoid changing camera URLs to work around a stale cache.
+
 ### Targeted changes and rollback
 
 Back up the materialized Coolify Compose file, runtime environment, role image IDs
