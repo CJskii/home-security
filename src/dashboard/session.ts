@@ -8,6 +8,7 @@ import type { Config } from "../config.js";
 declare module "@fastify/secure-session" {
   interface SessionData {
     dashboard: boolean;
+    dashboardExpiresAt: number;
   }
 }
 // One operator session; event access stays read-only. Configuration refresh has
@@ -18,16 +19,28 @@ export function installDashboardSession(app: FastifyInstance, config: Config) {
     return () => false;
   const digest = (v: string) => createHash("sha256").update(v).digest();
   const expected = digest(config.DASHBOARD_PASSWORD);
+  const standardSeconds = 8 * 60 * 60;
+  const rememberedSeconds = 30 * 24 * 60 * 60;
+  const active = (req: FastifyRequest) => {
+    if (req.session?.get("dashboard") !== true) return false;
+    const expiresAt = req.session.get("dashboardExpiresAt");
+    if (expiresAt !== undefined)
+      return Number.isSafeInteger(expiresAt) && expiresAt > Date.now();
+    // Cookies issued before remembered sessions retain their original eight hours.
+    const issuedAt: unknown = req.session.get("__ts");
+    return typeof issuedAt === "number" && Number.isFinite(issuedAt) &&
+      (issuedAt + standardSeconds) * 1000 > Date.now();
+  };
   void app.register(secureSession, {
     key: Buffer.from(config.DASHBOARD_SESSION_KEY, "hex"),
     cookieName: "dashboard_session",
-    expiry: 28800,
+    expiry: rememberedSeconds,
     cookie: {
       path: "/api",
       httpOnly: true,
       secure: origin.startsWith("https:"),
       sameSite: "strict",
-      maxAge: 28800,
+      maxAge: standardSeconds,
     },
   });
   void app.register(rateLimit, {
@@ -48,7 +61,7 @@ export function installDashboardSession(app: FastifyInstance, config: Config) {
     }, async (req, reply) => {
       reply.header("Cache-Control", "no-store");
       if (!allowed(req)) return reply.code(403).send({ error: "Forbidden" });
-      if (req.session.get("dashboard") !== true)
+      if (!active(req))
         return reply.code(401).send({ error: "Unauthorized" });
       const { src } = req.query as { src: string };
       if (!config.LIVE_GATEWAY_ENABLED)
@@ -62,17 +75,20 @@ export function installDashboardSession(app: FastifyInstance, config: Config) {
       {
         config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
         schema: {
-          body: z.object({ password: z.string().min(1).max(256) }).strict(),
+          body: z.object({ password: z.string().min(1).max(256), remember: z.boolean().default(false) }).strict(),
           querystring: z.object({}).strict(),
         },
       },
       async (req, reply) => {
         if (!allowed(req)) return reply.code(403).send({ error: "Forbidden" });
-        const { password } = req.body as { password: string };
+        const { password, remember } = req.body as { password: string; remember: boolean };
         if (!timingSafeEqual(expected, digest(password)))
           return reply.code(401).send({ error: "Unauthorized" });
         req.session.regenerate();
         req.session.set("dashboard", true);
+        const lifetime = remember ? rememberedSeconds : standardSeconds;
+        req.session.set("dashboardExpiresAt", Date.now() + lifetime * 1000);
+        req.session.options({ maxAge: lifetime });
         return { authenticated: true };
       },
     );
@@ -80,7 +96,7 @@ export function installDashboardSession(app: FastifyInstance, config: Config) {
       "/api/session",
       { schema: { querystring: z.object({}).strict() } },
       async (req, reply) => {
-        return req.session.get("dashboard") === true
+        return active(req)
           ? { authenticated: true }
           : reply.code(401).send({ error: "Unauthorized" });
       },
@@ -101,5 +117,5 @@ export function installDashboardSession(app: FastifyInstance, config: Config) {
         String(req.headers["sec-fetch-site"]),
       )) &&
     (!req.headers.origin || req.headers.origin === origin) &&
-    req.session?.get("dashboard") === true;
+    active(req);
 }

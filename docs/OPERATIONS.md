@@ -39,6 +39,22 @@ Generate a separate session/media/encryption key with `openssl rand -hex 32` and
 separate random credentials for each token. Preserve existing keys, installation
 identities, live cutoffs and saved policies when upgrading an installation.
 
+### Dashboard sign-in
+
+The sign-in form defaults to **Remember this device for 30 days**. Uncheck it for
+an eight-hour session. Both use the encrypted HttpOnly session cookie, with Secure
+cookies on HTTPS and SameSite protection; no password or bearer token goes into
+localStorage. Expiry is enforced by the server as well as the browser. Existing
+cookies retain their original eight-hour limit, so sign in once with the option
+checked after upgrading. Sign out clears the current browser's cookie.
+
+Keep `DASHBOARD_SESSION_KEY` stable across deployments to preserve remembered
+devices. Rotating it invalidates sessions. Browser policies that clear cookies on
+exit and private-browsing windows can still remove remembered sign-ins. For
+Bitwarden, save the current dashboard URL in the vault item's URI settings; an old
+LAN development URL will not necessarily match the production hostname. The form
+provides a stable password name, current-password autocomplete and submit action.
+
 Operator-only preparation variables are documented in `.env.example`:
 `DEPLOY_POSTGRES_CONTAINER`, `DEPLOY_DATABASE_HOST`, `HA_CONFIG_ROOT` and the
 `NODE_RED_*` flow/recipient identifiers. Export these when running their scripts;
