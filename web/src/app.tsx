@@ -62,6 +62,7 @@ export function AuthGate() {
     refetchOnWindowFocus: "always",
   });
   const [password, setPassword] = useState(""),
+    [remember, setRemember] = useState(true),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   if (session.isPending)
@@ -85,9 +86,17 @@ export function AuthGate() {
             </p>
           </div>
           <form
+            id="dashboard-login"
+            action="/api/session"
+            method="post"
+            autoComplete="on"
             className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
+              // Password managers may fill the DOM without a React change event.
+              const form = new FormData(e.currentTarget);
+              const submittedPassword = String(form.get("password") ?? "");
+              const rememberDevice = form.has("remember");
               setBusy(true);
               setError("");
               void fetch("/api/session", {
@@ -95,7 +104,7 @@ export function AuthGate() {
                 credentials: "same-origin",
                 cache: "no-store",
                 headers: { "content-type": "application/json" },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ password: submittedPassword, remember: rememberDevice }),
               })
                 .then(async (r) => {
                   if (!r.ok)
@@ -120,6 +129,7 @@ export function AuthGate() {
             <Label htmlFor="password">Dashboard password</Label>
             <Input
               id="password"
+              name="password"
               type="password"
               autoComplete="current-password"
               value={password}
@@ -127,6 +137,17 @@ export function AuthGate() {
               required
               maxLength={256}
             />
+            <Label htmlFor="remember-device" className="flex items-center gap-2 text-sm font-normal">
+              <input
+                id="remember-device"
+                name="remember"
+                type="checkbox"
+                className="size-4 rounded border-input accent-primary"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Remember this device for 30 days
+            </Label>
             {error && (
               <p role="alert" className="text-xs text-destructive">
                 {error}

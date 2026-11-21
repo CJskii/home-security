@@ -166,6 +166,38 @@ it("uses Secure cookies for HTTPS and rejects incomplete or insecure production 
     }),
   ).toThrow();
 });
+it('keeps a remembered cookie across API restarts and expires it after thirty days',async()=>{
+ const clock=vi.spyOn(Date,'now'),start=Math.floor(Date.now()/1000)*1000;
+ try{
+  clock.mockReturnValue(start);const f=setup(true);
+  const login=await f.app.inject({method:'POST',url:'/api/session',headers:{origin:'https://security.example'},payload:{password,remember:true}});
+  expect(login.statusCode).toBe(200);const cookie=login.cookies[0]!;
+  expect(Number(cookie.maxAge)).toBe(30*86400);expect(cookie.httpOnly).toBe(true);expect(cookie.secure).toBe(true);expect(cookie.sameSite).toBe('Strict');
+  const headers={cookie:`${cookie.name}=${encodeURIComponent(cookie.value)}`};const restarted=setup(true);
+  clock.mockReturnValue(start+86400000);
+  expect((await restarted.app.inject({url:'/api/session',headers})).statusCode).toBe(200);
+  const logout=await restarted.app.inject({method:'DELETE',url:'/api/session',headers:{...headers,origin:'https://security.example'}});
+  expect(logout.statusCode).toBe(200);expect(Number(logout.cookies[0]?.maxAge)).toBe(0);
+  clock.mockReturnValue(start+30*86400000+1000);
+  expect((await restarted.app.inject({url:'/api/session',headers})).statusCode).toBe(401);
+ }finally{clock.mockRestore();}
+});
+it('enforces eight hours on the server for non-remembered and legacy cookies, including live authorization',async()=>{
+ const clock=vi.spyOn(Date,'now'),start=Math.floor(Date.now()/1000)*1000;
+ try{
+  clock.mockReturnValue(start);const f=setup();await f.app.ready();
+  const legacy=f.app.encodeSecureSession(f.app.createSecureSession({dashboard:true}));
+  const login=await f.app.inject({method:'POST',url:'/api/session',headers:{origin},payload:{password,remember:false}});
+  const cookie=login.cookies[0]!;expect(Number(cookie.maxAge)).toBe(28800);
+  clock.mockReturnValue(start+9*3600000);
+  for(const value of [cookie.value,legacy]){
+   const headers={cookie:`dashboard_session=${encodeURIComponent(value)}`,origin};
+   expect((await f.app.inject({url:'/api/session',headers})).statusCode).toBe(401);
+   expect((await f.app.inject({url:'/api/live/authorize?src=camera_1_sub',headers})).statusCode).toBe(401);
+   expect((await f.app.inject({url:'/api/dashboard/statistics',headers})).statusCode).toBe(401);
+  }
+ }finally{clock.mockRestore();}
+});
 it("validates bounded statistics ranges and returns aggregate counts without event hydration", async () => {
   const q = statisticsSchema.parse({
     camera: "camera'1",

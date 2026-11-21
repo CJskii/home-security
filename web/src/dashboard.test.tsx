@@ -285,6 +285,27 @@ it("returns to sign-in after an expired session refetch despite previously authe
   expect(screen.queryByText("Protected dashboard content")).toBeNull();
   client.clear();
 });
+it.each([true,false])('submits the remembered-device choice (%s) using a named password-manager-compatible form',async remember=>{
+ const requests:{url:string;body:unknown}[]=[];
+ vi.stubGlobal('fetch',vi.fn(async(input:string,init?:RequestInit)=>{
+  if(init?.method==='POST'){requests.push({url:input,body:JSON.parse(String(init.body))});return new Response('{}',{status:401,headers:{'content-type':'application/json'}});}
+  return new Response('{}',{status:401,headers:{'content-type':'application/json'}});
+ }));
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});
+ render(<QueryClientProvider client={client}><MemoryRouter><AuthGate/></MemoryRouter></QueryClientProvider>);
+ const password=await screen.findByLabelText('Dashboard password');expect(password.getAttribute('name')).toBe('password');expect(password.getAttribute('autocomplete')).toBe('current-password');
+ const form=password.closest('form')!;expect(form.getAttribute('method')).toBe('post');expect(form.getAttribute('action')).toBe('/api/session');
+ const checkbox=screen.getByRole('checkbox',{name:'Remember this device for 30 days'});expect((checkbox as HTMLInputElement).checked).toBe(true);
+ const user=userEvent.setup();if(!remember)await user.click(checkbox);await user.type(password,'fixture-password');await user.click(screen.getByRole('button',{name:'Sign in'}));
+ await waitFor(()=>expect(requests).toEqual([{url:'/api/session',body:{password:'fixture-password',remember}}]));client.clear();
+});
+it('submits a password-manager-filled DOM value even without a React change event',async()=>{
+ let submitted:unknown;
+ vi.stubGlobal('fetch',vi.fn(async(_input:string,init?:RequestInit)=>{if(init?.method==='POST')submitted=JSON.parse(String(init.body));return new Response('{}',{status:401,headers:{'content-type':'application/json'}});}));
+ const client=new QueryClient({defaultOptions:{queries:{retry:false}}});render(<QueryClientProvider client={client}><MemoryRouter><AuthGate/></MemoryRouter></QueryClientProvider>);
+ const input=await screen.findByLabelText('Dashboard password');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,'autofilled-fixture');
+ await userEvent.setup().click(screen.getByRole('button',{name:'Sign in'}));await waitFor(()=>expect(submitted).toEqual({password:'autofilled-fixture',remember:true}));client.clear();
+});
 it('opens the HA other-zone link using the server-side cohort filter',async()=>{
  const requests:string[]=[];vi.stubGlobal('fetch',vi.fn(async(input:string)=>{requests.push(input);return new Response(JSON.stringify(input.startsWith('/api/events?')?{events:[fixture()],nextCursor:null}:fixture()),{headers:{'content-type':'application/json'}});}));const client=mount('other');expect(await screen.findByText('AI skipped · capacity')).toBeTruthy();expect(requests.some(r=>r.includes('zoneInterest=other')&&!r.includes('locationZoneId=other'))).toBe(true);client.clear();
 });
